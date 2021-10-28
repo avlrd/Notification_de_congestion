@@ -10,10 +10,19 @@
 
 int main(int argc, char const *argv[])
 {
-    if (argc != 4)
-        return EXIT_FAILURE;
+	//Checking usage
+	if(argc != 4)
+	{
+		fprintf(stdout, "usage: ./destination <IP_dist> <local_port> <dist_port>\n");
+		return EXIT_FAILURE;
+	}
 
-    int ip = atoi(argv[1]), pl = atoi(argv[2]), pe = atoi(argv[3]);
+	//Getting command args
+	int ipdist =	atoi(argv[1]),
+		localport =	atoi(argv[2]),
+		distport =	atoi(argv[3]);
+
+	//Accept dans un while (while(accept...)) pour ecouter en continu
    
-    return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
