@@ -6,7 +6,7 @@
 #include <string.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
+#include <arpa/inet.h>			//avoid implicit declaration inet_aton
 
 #define SIZE 1024
 
@@ -34,10 +34,11 @@ int main(int argc, char const *argv[])
 	}
 
 //Gettings command args
-	int mode =		(argv[1] == "gobackn") ? 1 : 0, //0 -> stopandwait (default)
-		ipdist =	atoi(argv[2]),
-		localport =	atoi(argv[3]),
-		distport =	atoi(argv[4]);
+	const char*	mode =		argv[1];
+	const char*	ipdist =	argv[2];
+
+	int			localport =	atoi(argv[3]),
+				distport =	atoi(argv[4]);
 
 //Ergonomy
 	int domain = AF_INET;
@@ -53,8 +54,8 @@ int main(int argc, char const *argv[])
 
 	dist.sin_family = domain;
 	dist.sin_port = htons(distport);
-	if(inet_pton(domain, argv[2], &dist.sin_addr) != 1)
-		raler(1, "inet_pton error");
+	if(inet_aton(ipdist, &dist.sin_addr) == 0)
+		raler(1, "inet_aton: adress not valid");
 
 	if(mode == 0)
 	{
@@ -69,3 +70,16 @@ int main(int argc, char const *argv[])
 	CHECK(close(sok));
 	exit(EXIT_SUCCESS);
 }
+
+/*
+	//Sending each packet
+	for (i = 0; i < NB_PACKETS; i++)
+	{
+		printf("Send the packet number %d\n", i);
+		sprintf(buf, "Packet content %d", i);
+		/ We need (struct sockaddr *) because we are passing it a 
+		memory layout-compatible (struct sockadd_in *) /
+		CHECK(sendto(s, buf, BUFLEN, 0, (struct sockaddr *)&saddr_dest,
+					 sizeof(saddr_dest)));
+	}
+*/
