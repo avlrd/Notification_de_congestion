@@ -8,14 +8,39 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>			//avoid implicit declaration inet_aton
 
+#define FORMATSIZE 52
 #define SIZE 1024
 
+typedef struct packet
+{
+	int* id_flux;				//numero de flux du paquet
+	int* type;					//type: 16(ACK) 4(RST) 2(FIN) 1(SYN)
+	int* seq_num;				//Num Sequence
+	int* ack_num;				//Num Acquittement
+	int* ecn;					//notif de congestion
+	int* ewnd;					//Fenetre d'mission
+	void* data;					//Donnée, peut etre de n'importe quel type
+}Packet;
 
-void stopandwait()
+void stopandwait(int* ack_check)
 {
 	/*
 		Le principe est d'envoyer un packet dans un while infini, de bloquer l'envoi de packet en attendant l'ack grace au recvfrom
 	*/
+	Packet* p = malloc(FORMATSIZE);
+	p->id_flux = 1; //MODIFY WHEN TESTS ARE OK FOR BASIC IMPLEMENTATION
+	p->type = 16;
+	
+
+	while(1)
+	{
+		if(ack_check == 1)
+		{
+			
+			
+		}
+					
+	}
 }
 
 void gobackn()
@@ -57,9 +82,13 @@ int main(int argc, char const *argv[])
 	if(inet_aton(ipdist, &dist.sin_addr) == 0)
 		raler(1, "inet_aton: adress not valid");
 
+//Function needed variables
+	int* ack_rcvd; *ack_rcvd = 1;
+
+//Mode calls
 	if(mode == 0)
 	{
-		stopandwait();
+		stopandwait(ack_rcvd);
 	}
 	else
 	{
