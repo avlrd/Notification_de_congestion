@@ -18,7 +18,7 @@ typedef struct packet
 	int* seq_num;				//Num Sequence
 	int* ack_num;				//Num Acquittement
 	int* ecn;					//notif de congestion
-	int* ewnd;					//Fenetre d'mission
+	int* ewnd;					//Fenetre d'emission
 	void* data;					//Donnée, peut etre de n'importe quel type
 }Packet;
 
@@ -29,8 +29,11 @@ void stopandwait(int* ack_check)
 	*/
 	Packet* p = malloc(FORMATSIZE);
 	p->id_flux = 1; //MODIFY WHEN TESTS ARE OK FOR BASIC IMPLEMENTATION
-	p->type = 16;
-	
+	p->type = 0;	//DATA type
+	p->ack_num = 0;
+	p->ecn = 1;
+	p->ewnd = 1;
+	p->data = "Test.\n"; //NOT SURE
 
 	while(1)
 	{
