@@ -1,57 +1,32 @@
-#include "../include/check.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h> 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>			//avoid implicit declaration inet_aton
+#include "../include/utils.h"
 
-#define FORMATSIZE 52
-#define SIZE 1024
-
-typedef struct packet
-{
-	int* id_flux;				//numero de flux du paquet
-	int* type;					//type: 16(ACK) 4(RST) 2(FIN) 1(SYN)
-	int* seq_num;				//Num Sequence
-	int* ack_num;				//Num Acquittement
-	int* ecn;					//notif de congestion
-	int* ewnd;					//Fenetre d'emission
-	void* data;					//Donnée, peut etre de n'importe quel type
-}Packet;
-
-void stopandwait(int* ack_check)
+void stopandwait(int sok, struct sockaddr_in* dist)
 {
 	/*
 		Le principe est d'envoyer un packet dans un while infini, de bloquer l'envoi de packet en attendant l'ack grace au recvfrom
 	*/
-	Packet* p = malloc(FORMATSIZE);
-	p->id_flux = 1; //MODIFY WHEN TESTS ARE OK FOR BASIC IMPLEMENTATION
-	p->type = 0;	//DATA type
-	p->ack_num = 0;
-	p->ecn = 1;
-	p->ewnd = 1;
-	p->data = "Test.\n"; //NOT SURE
+	Packet p;
+	p.id_flux = 1; //MODIFY WHEN TESTS ARE OK FOR BASIC IMPLEMENTATION
+	p.type = DATA;
+	p.seq_num = 0;
+	p.ack_num = 0;
+	p.ecn = 0;
+	p.ewnd = 1;
+	p.message = "Test";
 
-	while(1)
-	{
-		if(ack_check == 1)
-		{
-			
-			
-		}
-					
-	}
+	CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr*) dist, sizeof(struct sockaddr_in)));
+	printf("Sent.\n");
+
+	int received;
+	socklen_t tmp = sizeof(struct sockaddr_in);
+	CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr*) dist, &tmp)));
 }
-
+/*
 void gobackn()
 {
 
 }
-
-
+*/
 int main(int argc, char const *argv[])
 {
 //Checking usage
@@ -62,16 +37,25 @@ int main(int argc, char const *argv[])
 	}
 
 //Gettings command args
-	const char*	mode =		argv[1];
-	const char*	ipdist =	argv[2];
-
-	int			localport =	atoi(argv[3]),
-				distport =	atoi(argv[4]);
+	const char*	arg1 = argv[1];
+	int mode;
+	if(strcmp(arg1, "stopandwait") == 0)
+		mode = 0;
+	else if(strcmp(arg1, "gobackn") == 0)
+		mode = 1;
+	else
+	{
+		fprintf(stderr, "Possible values for mode: <stopandwait> or <gobackn>");
+		exit(EXIT_FAILURE);
+	}
+	const char*	ipdist = argv[2];
+	int	localport =	atoi(argv[3]);
+	int	distport =	atoi(argv[4]);
 
 //Ergonomy
 	int domain = AF_INET;
 
-//Socket init
+//Socket init and bind
 	int sok;
 	struct sockaddr_in dist;
 
@@ -85,18 +69,23 @@ int main(int argc, char const *argv[])
 	if(inet_aton(ipdist, &dist.sin_addr) == 0)
 		raler(1, "inet_aton: adress not valid");
 
+	CHECK(bind(sok, (struct sockaddr*) &dist, sizeof(struct sockaddr_in)));
+
 //Function needed variables
-	int* ack_rcvd; *ack_rcvd = 1;
+	//int* ack_rcvd; *ack_rcvd = 1;
 
 //Mode calls
+
 	if(mode == 0)
 	{
-		stopandwait(ack_rcvd);
+		stopandwait(sok, &dist);
 	}
 	else
 	{
-		gobackn();
+		//gobackn();
 	}
+
+	//test();
 
 	fprintf(stdout, "Done.\n");
 	CHECK(close(sok));
