@@ -1,5 +1,38 @@
 #include "utils.h"
 
+void threeWayHandshake(int sok, struct sockaddr_in *dist)
+{
+	// Manque gestion erreurs et timeout !!
+	uint16_t A = rand() % 65535; // max uint16_t = 65535, aleatoire pour la securite
+	long received;
+	socklen_t tmp = sizeof(struct sockaddr_in);
+	struct sockaddr_in distTmp; // structure d'@ pour @ distante temporaire
+
+	Packet pSyn;
+	pSyn.id_flux = 1;
+	pSyn.type = SYN;  // Le client qui désire établir une connexion avec un serveur va envoyer un premier paquet SYN (synchronized) au serveur.
+	pSyn.seq_num = A; // Le numéro de séquence de ce paquet est un nombre aléatoire A.
+	pSyn.ack_num = 0;
+	pSyn.ecn = 0;
+	pSyn.ewnd = 1;
+	pSyn.message = "message tWH";
+
+	CHECK(sendto(sok, &pSyn, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
+	CHECK((received = recvfrom(sok, &pSyn, sizeof(Packet), 0, (struct sockaddr *)&distTmp, &tmp)));
+
+	uint16_t B = pSyn.seq_num;
+
+	Packet pAck;
+	pAck.id_flux = 1;
+	pAck.type = ACK;
+	pAck.seq_num = B + 1; // Le numéro du ACK est égal au numéro de séquence du paquet précédent (SYN-ACK) incrémenté de un (B + 1).
+	pAck.ack_num = A + 1; // Le numéro d'acquittement de ce paquet est défini selon le numéro de séquence reçu précédemment (par exemple : A + 1).
+	pAck.ecn = 0;
+	pAck.ewnd = 1;
+	pAck.message = "message tWH";
+	CHECK(sendto(sok, &pAck, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
+}
+
 void stopandwait(int sok, struct sockaddr_in *dist)
 {
 	/* Le principe est d'envoyer un packet dans un while infini, 
@@ -19,7 +52,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 	CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 	printf("Sent.\n");
 
-	int received;
+	long received;
 	socklen_t tmp = sizeof(struct sockaddr_in);
 	CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, &tmp)));
 }
@@ -91,6 +124,9 @@ int main(int argc, char const *argv[])
 
 	//Function needed variables
 	//int* ack_rcvd; *ack_rcvd = 1;
+
+	// Three-way handshake
+	threeWayHandshake(sok, &dist);
 
 	//Mode calls
 

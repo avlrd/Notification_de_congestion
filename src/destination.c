@@ -50,7 +50,7 @@ int main(int argc, char const *argv[])
 	while (1)
 	{
 		Packet p; // paquet
-		int received;
+		long received;
 
 		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&source, &source_size)));
 		if (received > 0)
@@ -68,11 +68,31 @@ int main(int argc, char const *argv[])
 				fprintf(stdout, "Ack sent\n");
 				break;
 
-			case ACK:
+			case ACK: // Three way handshake
+
+				// Manque gestion erreurs et timeout !!
+				fprintf(stdout, "Packet received\n");
+				display(p);
+				uint16_t A = p.seq_num;
+				p.type = ACK;
+				p.ack_num = A + 1; // Le numéro du ACK est égal au numéro de séquence du paquet précédent (SYN) incrémenté de un (A + 1)
+				p.message = "Ack tWH";
+				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&source, sizeof(struct sockaddr_in)));
+				break;
 
 			case FIN:
+				break;
 
-			case SYN:
+			case SYN: // Three way handshake
+
+				// Manque gestion erreurs et timeout !!
+				fprintf(stdout, "Packet received\n");
+				display(p);
+				uint16_t B = rand() % 65535; // max uint16_t = 65535, aleatoire pour la securite
+				p.type = SYN;				 // Le serveur va répondre au client à l'aide d'un paquet SYN-ACK (synchronize, acknowledge).
+				p.seq_num = B;				 // Le numéro de séquence du paquet SYN-ACK est un nombre aléatoire B.
+				p.message = "Syn tWH";
+				break;
 
 			case ACK + FIN:
 				break;
