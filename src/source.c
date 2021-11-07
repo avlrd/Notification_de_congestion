@@ -1,9 +1,9 @@
-#include "../include/utils.h"
+#include "utils.h"
 
-void stopandwait(int sok, struct sockaddr_in* dist)
+void stopandwait(int sok, struct sockaddr_in *dist)
 {
-	/*
-		Le principe est d'envoyer un packet dans un while infini, de bloquer l'envoi de packet en attendant l'ack grace au recvfrom
+	/* Le principe est d'envoyer un packet dans un while infini, 
+	   de bloquer l'envoi de packet en attendant l'ack grace au recvfrom
 	*/
 	Packet p;
 	p.id_flux = 1; //MODIFY WHEN TESTS ARE OK FOR BASIC IMPLEMENTATION
@@ -14,12 +14,14 @@ void stopandwait(int sok, struct sockaddr_in* dist)
 	p.ewnd = 1;
 	p.message = "Test";
 
-	CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr*) dist, sizeof(struct sockaddr_in)));
+	// Send, sendto, et sendmsg permettent de transmettre un mes­sage à destination d'une autre socket.
+
+	CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 	printf("Sent.\n");
 
 	int received;
 	socklen_t tmp = sizeof(struct sockaddr_in);
-	CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr*) dist, &tmp)));
+	CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, &tmp)));
 }
 /*
 void gobackn()
@@ -29,55 +31,72 @@ void gobackn()
 */
 int main(int argc, char const *argv[])
 {
-//Checking usage
-	if(argc != 5)
+	//Checking usage
+	if (argc != 5)
 	{
 		fprintf(stderr, "usage: ./source <mode> <IP_dist> <local_port> <dist_port>\n");
 		exit(EXIT_FAILURE);
 	}
 
-//Gettings command args
-	const char*	arg1 = argv[1];
+	//Gettings command args
+	const char *arg1 = argv[1];
 	int mode;
-	if(strcmp(arg1, "stopandwait") == 0)
+	if (strcmp(arg1, "stopandwait") == 0)
 		mode = 0;
-	else if(strcmp(arg1, "gobackn") == 0)
+	else if (strcmp(arg1, "gobackn") == 0)
 		mode = 1;
 	else
 	{
 		fprintf(stderr, "Possible values for mode: <stopandwait> or <gobackn>");
 		exit(EXIT_FAILURE);
 	}
-	const char*	ipdist = argv[2];
-	int	localport =	atoi(argv[3]);
-	int	distport =	atoi(argv[4]);
+	const char *ipdist = argv[2];
+	int localport = atoi(argv[3]);
+	int distport = atoi(argv[4]);
 
-//Ergonomy
-	int domain = AF_INET;
+	//Ergonomy
+	int domain = AF_INET; // = Format d'adresse, Internet = Adresses IP  (famille IPv4)
 
-//Socket init and bind
+	//Socket init and bind
 	int sok;
-	struct sockaddr_in dist;
+	struct sockaddr_in dist; // structure d'@ pour @ distante
 
-	CHECK(sok = socket(domain, SOCK_DGRAM, 0));
+	// IPv4, datagram-based protocol, IPPROTO_UDP
+	CHECK(sok = socket(domain, SOCK_DGRAM, IPPROTO_UDP)); // cree un descripteur/socket -> int socket(famille,type,protocole)
 
-	if(memset(&dist, '\0', sizeof(dist)) == NULL)
+	if (memset(&dist, '\0', sizeof(dist)) == NULL) // reinitialise contenu de struct dist a O
 		raler(1, "memset error");
 
-	dist.sin_family = domain;
-	dist.sin_port = htons(distport);
-	if(inet_aton(ipdist, &dist.sin_addr) == 0)
+	// htons() convertit un entier court non signé hostshort depuis l'ordre des octets de l'hôte vers celui du réseau.
+	// -> ( big ou little endian géré automatiquement)
+
+	dist.sin_family = domain;		  // distant sera IPv4
+	dist.sin_port = htons(localport); // port local
+
+	/* inet_aton(const char *cp, struct in_addr *inp) convertit l'adresse Internet de l'hôte cp 
+	   depuis la notation IPv4 avec nombres et points vers une forme binaire (dans l'ordre d'octet
+	   du réseau), et la  stocke  dans  la structure  pointée  par  inp.  inet_aton()  renvoie  
+	   une valeur non nulle si l'adresse est valable, et zéro sinon. L'adresse fournie à cp peut 
+	   avoir l'une des formes suivantes
+	*/
+
+	if (inet_aton(ipdist, &dist.sin_addr) == 0)
 		raler(1, "inet_aton: adress not valid");
 
-	CHECK(bind(sok, (struct sockaddr*) &dist, sizeof(struct sockaddr_in)));
+	/* bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) affecte l'adresse 
+	  spécifiée dans addr à la socket référencée par le descripteur de fichier sockfd. */
 
-//Function needed variables
+	// bind l'@ local à la socket
+	CHECK(bind(sok, (struct sockaddr *)&dist, sizeof(struct sockaddr_in)));
+
+	//Function needed variables
 	//int* ack_rcvd; *ack_rcvd = 1;
 
-//Mode calls
+	//Mode calls
 
-	if(mode == 0)
+	if (mode == 0)
 	{
+		dist.sin_port = htons(distport); // port distant
 		stopandwait(sok, &dist);
 	}
 	else

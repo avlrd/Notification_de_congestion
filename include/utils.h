@@ -27,10 +27,10 @@ typedef struct packet
 	uint16_t ack_num;				//Num Acquittement
 	uint8_t ecn;					//notif de congestion
 	uint8_t ewnd;					//Fenetre d'emission
-	char* message;						//Contenu du message
+	char* message;					//Contenu du message
 }Packet;
 
 void display(Packet p);
 void test();
 
-#endif
+#endif /* __UTILS_H__ */
