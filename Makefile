@@ -58,6 +58,27 @@ $(info Information utile : Saisissez correctement le nom des fichiers et du chem
 $(error Effectuez : 'make' ET/OU 'NAME=binName' ET/OU 'TFP=<path>' (TFP=src par défaut) ET/OU {'MODE = MF' ET 'TFM=<filename/s>'})
 endif
 
+# IDEE !!!
+
+ifeq($(MODE), PROJET)
+	TFPS = source
+	TFPD = destination
+
+all : bin/source bin/destination
+
+bin/source : obj/source.o obj/utils.o
+	gcc -I include -Wall -Wextra -Werror -o $@ $^
+
+bin/destination : obj/destination.o obj/utils.o
+	gcc -I include -Wall -Wextra -Werror -o $@ $^
+
+obj/%.o : src/%.c
+	gcc -g -I include -Wall -Wextra -Werror -o $@ -c $<
+
+# Fin de l'idée
+
+
+
 ifneq ($(NAME),)
 	EXEC = $(NAME)
 endif
