@@ -11,15 +11,19 @@
 
 > Dans le terminal saisissez : 
 
-    make MODE=MF TFM=/source:/utils:/check:
-    make MODE=MF TFM=/destination:/utils:/check:
+    make 
+
+> Cela va compiler : 
+
+    make MODE=MF TFM='source utils'
+    make MODE=MF TFM='destination utils'
 
 #### 1.1 Tester
 
 > Dans le terminal saisissez : 
 
-    ./source <mode> <IP_distante> <port_local> <port_ecoute_src_pertubateur>
-    ./destination <IP_distante> <port_local> <port_ecoute_dst_pertubateur>
+    ./bin/source <mode> <IP_distante> <port_local> <port_ecoute_src_pertubateur>
+    ./bin/destination <IP_distante> <port_local> <port_ecoute_dst_pertubateur>
 
 ### 2. Medium
 
