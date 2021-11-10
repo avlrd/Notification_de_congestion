@@ -92,7 +92,7 @@ endif
 
 # TARGETS
 # ------------------------
-# all run  clean
+# all run  clean infos
 all: 
 	@if [ "$(strip $(MODE))" = "N" ]                   \
 	 || [ "$(strip $(MODE))" = "MF" ]; then            \
