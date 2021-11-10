@@ -27,6 +27,7 @@ CCG     = $(CC) -g # gcc + default debugging info
 IPATH   = include
 OPATH   = obj/
 BPATH   = bin/
+NAME    = # Binary file name
 # We look in the directory specified by -I and exhaustive warnings:
 CFLAGS  = -I $(IPATH) -Wall -Wextra -Werror
 
@@ -77,11 +78,23 @@ ifeq ($(strip $(MODE)),N) # OBJETS : list of C replacing the ‘.c’ suffix wit
 	endif
 else ifeq ($(strip $(MODE)),MF) 
 	ifneq ($(TFM),)
-		BIN = $(BPATH)$(word 1,$(TFM)) 
+		BIN = $(BPATH)$(word 1,$(TFM))
 		OBJETS = $(patsubst $(CPATH)%.c,$(OPATH)%.o,$(addprefix $(CPATH),$(addsuffix .c,$(TFM))))
 	else 
         $(call infoError)
 	endif
+else ifeq ($(strip $(MODE)),C) # Continue
+else 
+    $(call infoError)
+endif
+
+ifneq ($(strip $(NAME)),)
+	FILE_EXISTS = $(or $(and $(wildcard $(BPATH)$(NAME)),1),0)
+	ifeq ($(FILE_EXISTS),1)
+    $(error Saisissez un autre NOM. Exemple : NAME=$(NAME)1)
+	else 
+		BIN = $(BPATH)$(NAME)
+	endif 
 endif
 
 # PHONY 
@@ -92,7 +105,7 @@ endif
 
 # TARGETS
 # ------------------------
-# all run  clean infos
+# all run clean infos
 all: 
 	@if [ "$(strip $(MODE))" = "N" ]                   \
 	 || [ "$(strip $(MODE))" = "MF" ]; then            \
