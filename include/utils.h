@@ -29,6 +29,8 @@
  * --------------------  
  */
 #define FORMATSIZE 52
+#define MSIZE 44
+#define MAX 255
 #define SIZE 1024
 
 /*
@@ -84,16 +86,17 @@ noreturn void raler(int syserr, char *msg, ...);
 
 /** \struct packet
 * \brief Each layer of a packet  
-*/
+* Total size : 52 bytes
+*/ 
 typedef struct packet
 {
-	uint8_t id_flux;  /**!< numero de flux du paquet           */
-	uint8_t type;	  /**!< type: 16(ACK) 4(RST) 2(FIN) 1(SYN) */
-	uint16_t seq_num; /**!< Num Sequence                       */
-	uint16_t ack_num; /**!< Num Acquittement                   */
-	uint8_t ecn;	  /**!< notif de congestion                */
-	uint8_t ewnd;	  /**!< Fenetre d'emission                 */
-	char *message;	  /**!< Contenu du message                 */
+	uint8_t id_flux;  /**!< numero de flux du paquet            (size 1 bytes)    */
+	uint8_t type;	  /**!< type: 16(ACK) 4(RST) 2(FIN) 1(SYN)  (size 1 bytes)    */
+	uint16_t seq_num; /**!< Num Sequence                        (size 2 bytes)    */
+	uint16_t ack_num; /**!< Num Acquittement                    (size 2 bytes)    */
+	uint8_t ecn;	  /**!< notif de congestion                 (size 1 bytes)    */
+	uint8_t ewnd;	  /**!< Fenetre d'emission                  (size 1 bytes)    */
+	char message[MSIZE];  /**!< Contenu du message             (size 44 bytes)    */
 } Packet;
 
 /**

@@ -62,7 +62,7 @@ int main(int argc, char const *argv[])
 				display(p);
 				p.type += ACK;
 				p.ack_num = p.seq_num + 1;
-				p.message = "Acquittement";
+				p.message[MSIZE] = "Acquittement";
 				dest.sin_port = htons(destport);
 				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dest, dest_size));
 				fprintf(stdout, "Ack sent\n");
@@ -76,7 +76,7 @@ int main(int argc, char const *argv[])
 				uint16_t A = p.seq_num;
 				p.type = ACK;
 				p.ack_num = A + 1; // Le numéro du ACK est égal au numéro de séquence du paquet précédent (SYN) incrémenté de un (A + 1)
-				p.message = "Ack tWH";
+				p.message[MSIZE] = "Ack tWH";
 				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&source, sizeof(struct sockaddr_in)));
 				break;
 
@@ -91,7 +91,7 @@ int main(int argc, char const *argv[])
 				uint16_t B = rand() % 65535; // max uint16_t = 65535, aleatoire pour la securite
 				p.type = SYN;				 // Le serveur va répondre au client à l'aide d'un paquet SYN-ACK (synchronize, acknowledge).
 				p.seq_num = B;				 // Le numéro de séquence du paquet SYN-ACK est un nombre aléatoire B.
-				p.message = "Syn tWH";
+				p.message[MSIZE] = "Syn tWH";
 				break;
 
 			case ACK + FIN:

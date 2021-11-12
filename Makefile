@@ -18,6 +18,18 @@
 # Mode    : Editable according to the needs :
 MODE = C # C (Custom), N (Normal), MF (Multiple Files)
 
+# Custom MODE variables
+# ------------------------
+# 
+#MODE ARQ for ./source -> S = stopandwait OR G = gobackn
+MOPT = #OPTION for the medium
+ifeq ($(strip $(MARQ)),S) 
+	MARQS = $(strip stopandwait)
+$(info $(MARQ))
+else ifeq ($(strip $(MARQ)),G) 
+	MARQS = $(strip gobackn)
+endif
+
 # Miscellaneous variables
 # ------------------------
 whoami := $(shell whoami)
@@ -36,14 +48,15 @@ CFLAGS  = -I $(IPATH) -Wall -Wextra -Werror
 
 define utilS =
 $(info ) $(info Bienvenue $(whoami) !!)
-$(info ) $(info Utilisation simple : make) 
-$(info ) $(info Utilisation complexe : make infos) 
+$(info ) $(info Utilisation simple                : make) 
+$(info ) $(info Utilisation complexe              : make infos) 
+$(info ) $(info Utilisation custom (PROJET, etc.) : make infosC) 
 endef
 ifeq ($(MAKELEVEL),0)
 $(call utilS)
 endif 
 
-define utilC =
+define utilComplex =
 $(info ) $(info Utilisation complexe :  'make' ET/OU 'NAME=<binName>' ET/OU 'TFP=<path>' (TFP=src par défaut) ET/OU {'MODE = MF' ET 'TFM=<'filename1 filename2 etc'>'} )
 $(info ) $(info Exemple	complexe     :   make NAME=binaryFile TFP=sourceChemin MODE=MF TFM='filename1 filename2 etc')
 $(info ) $(info Nettoyer bin et obj  :   make clean) 
@@ -53,6 +66,17 @@ endef
 define infoError =
 $(info Information utile : Saisissez correctement le nom des fichiers et du chemin)
 $(error Effectuez        : 'make' ET/OU 'NAME=<binName>' ET/OU 'TFP=<path>' (TFP=src par défaut) ET/OU {'MODE = MF' ET 'TFM=<filename/s>'})
+endef
+
+# Custom MODE define
+# ------------------------
+# 
+define utilCustom =
+$(info ) $(info Pour le Projet de Reseau :   MARQ=S -> stopandwait ET MARQ=G -> gobackn)
+$(info ) $(info Vous devez effectuer     :   make source MARQ=S OU MARQ=G)
+$(info ) $(info Vous devez effectuer     :   make destination)
+$(info ) $(info Vous devez effectuer     :   make medium ET/OU MOPT=votreOption)
+$(info )
 endef
 
 # Target File Path 
@@ -137,7 +161,28 @@ msg_obj_compiling:
 	@echo "\n#### Objets : '$(OBJETS)' crée(s) dans le répertoire : '$(OPATH)' ####\n"
   
 infos :
-	$(call utilC)
+	$(call utilComplex)
+
+infosC :
+	$(call utilCustom)
+
+# CUSTOM : Projet Reseau
+# ---------------------------------
+# source, destination, medium
+# 127.0.0.1 -> standard address for IPv4 loopback traffic
+
+source : 	
+	@if [ "$(strip $(MARQS))" = "" ]; then             \
+		echo Effectuez : MARQ=S ou MARQ=G;             \
+		exit 1;                                        \
+    fi  
+	./source $(MARQS) 127.0.0.1 3333 4444
+	
+destination :
+	./destination 127.0.0.1 6666 5555
+
+medium :
+	python3 medium.py $(MOPT)
 
 # clean
 # ---------------------------------

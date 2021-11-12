@@ -31,7 +31,7 @@ void test()
 	p.ack_num = 0;
 	p.ecn = 0;
 	p.ewnd = 1;
-	p.message = "Message de test.";
+	p.message[MSIZE] = "Message de test.";
 
 	display(p);
 }
