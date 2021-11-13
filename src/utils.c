@@ -15,6 +15,9 @@ noreturn void raler(int syserr, char *msg, ...)
     exit(EXIT_FAILURE);
 }
 
+/*ajouter du code pour afficher les types en caracteres (syn ack et data etc...)
+plutot que des chiffres
+*/
 void display(Packet p)
 {
 	printf("----- Message reçu -----\n\n");
