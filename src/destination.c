@@ -44,21 +44,25 @@ int main(int argc, char const *argv[])
 
 		if (received > 0) //FAIRE UN TEST GENERAL DES VALEURS DU PAQUET
 		{
+			fprintf(stdout, "Packet received\n");
+
 			switch (p.type)
 			{
 			case DATA:
-				fprintf(stdout, "Packet received\n");
+
 				display(p);
+
 				p.type += ACK;
 				p.ack_num = p.seq_num + 1;
-				dist.sin_port = htons(distport);
+				strcpy(p.message, "Ack");
+
 				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
+
 				fprintf(stdout, "Ack sent\n");
 				break;
 
 			case ACK: //Cas uniquement utilisé par 3wayhandshake
 
-				fprintf(stdout, "Packet received\n");
 				if(p.ack_num != seq + 1) //verif du numéro d'ack
 				{
 					fprintf(stdout, "Wrong ack received. Cannot establish connexion.\n");
@@ -77,7 +81,6 @@ int main(int argc, char const *argv[])
 
 			case SYN:
 
-				fprintf(stdout, "Packet received\n");
 				display(p);
 
 				p.type = SYN + ACK;

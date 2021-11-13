@@ -61,67 +61,46 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/*
- * Function: stopandwait
- * ---------------------------
- * Arrêt et attente d’acquittement.
- *
- *  sock : int 
- *  dist : struct sockaddr_in*
- *
- *  returns: nothing
- */
 void stopandwait(int sok, struct sockaddr_in *dist)
 {
-	/* Le principe est d'envoyer un packet dans un while infini, 
-	   de bloquer l'envoi de packet en attendant l'ack grace au recvfrom
-	*/
+	int received;
+	int nb_msg = 5;
+	int i;
+
 	Packet p;
-	p.id_flux = 1; //MODIFY WHEN TESTS ARE OK FOR BASIC IMPLEMENTATION
-	p.type = DATA;
-	p.seq_num = 0;
-	p.ack_num = 0;
-	p.ecn = 0;
-	p.ewnd = 1;
-	//p.message[MSIZE] = "Test";
 
-	// Send, sendto, et sendmsg permettent de transmettre un mes­sage à destination d'une autre socket.
-
-	// timeout bloquant car surveille descripteur donc avant recvfrom
-	while (1)
+	for(i = 0; i < nb_msg; i++)
 	{
-		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
-		printf("Sent.\n");
-		// Pas de message suivant si pas ack, donc possibilité d'un timeout infini
-		/*
-		if (timeout(sok)) // >1
-		{ 
-			printf("Des données sont disponibles maintenant\n");
-			break; // pas de timeout, on sort de la boucle
+		p.seq_num = i;
+		p.ack_num = 0;
+		p.type = DATA;
+		p.id_flux = 1;
+		p.ecn = 0;
+		p.ewnd = 1;
+		strcpy(p.message, "Test");
+
+		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+		printf("Packet n°%d sent, waiting for ack...\n", p.seq_num);
+
+		while(timeout(sok) == 0)
+		{
+			printf("Timed out.\nResending packet...\n\n");
+
+			CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
 		}
-		// FD_ISSET(0, &rfds) est vrai
-		else // 0 
-		{ 
-			printf("Aucun acquittement recu\n");
-			printf("Aucune données durant les 5 secondes\n");
+
+		CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
+		if(p.type == ACK && p.ack_num == i+1)
+		{
+			printf("Ack received!\n");
+			display(p);
 		}
-		*/
+		else
+			printf("Error!!!\n");
 	}
-	long received;
-	socklen_t tmp = sizeof(struct sockaddr_in);
-	CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, &tmp)));
+	printf("Finished sending messages.\n");
 }
 
-/*
- * Function: timeout
- * --------------------
- * Terminer/quitter la saisie des messages sur l'entrée standard.
- *
- *  sock : int 
- *  dist : struct sockaddr_in*
- *
- *  returns: nothing
- */
 int quitter(char *message)
 {
 	return (strncmp(message, "exit(q)", 7) == 0) || (strncmp(message, "\0", 1) == 0);
@@ -284,7 +263,7 @@ int main(int argc, char const *argv[])
 
 	if (mode == 0)
 	{
-		//stopandwait(sok, &dist);
+		stopandwait(sok, &dist);
 	}
 	else
 	{
