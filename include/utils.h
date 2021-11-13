@@ -106,10 +106,6 @@ typedef struct packet
  */
 void display(Packet p);
 
-/**
- * \fn void test()
- * \brief Test a packet
- */
-void test();
+int timeout(int sok);
 
 #endif /* __UTILS_H__ */

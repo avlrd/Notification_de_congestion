@@ -1,5 +1,7 @@
 #include "utils.h"
 
+////////////////////////////////////////////////////////////////////////////////
+
 char *text = "Away we went then, and we drove for at least an hour."
 			 "Colonel Lysander Stark had said that it was only seven"
 			 "miles, but I should think, from the rate that we seemed"
@@ -11,48 +13,53 @@ char *text = "Away we went then, and we drove for at least an hour."
 Packet MsgBuffer[MAX];
 int nbMsgBuffer = 0;
 
+////////////////////////////////////////////////////////////////////////////////
 /*
- * Function: threeWayHandshake
- * ---------------------------
- * Ouverture de la connexion entre client et serveur.
- *
- *  sock : int 
- *  dist : struct sockaddr_in*
- *
- *  returns: nothing
- */
-void threeWayHandshake(int sok, struct sockaddr_in *dist)
+	Renvoie un uint16_t (short int) car il faut sauvegarder le numéro de séquence utilisé pour communiquer dans le sens client -> serveur (source -> destination).
+	Voir destination.c pour comprendre le fonctionnement.
+*/
+uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 {
-	// Manque gestion erreurs et timeout !!
-	uint16_t A = rand() % 65535; // max uint16_t = 65535, aleatoire pour la securite
-	long received;
-	socklen_t tmp = sizeof(struct sockaddr_in);
-	struct sockaddr_in distTmp; // structure d'@ pour @ distante temporaire
+	uint16_t seq = rand() % 65535;
+	int received;
+	
+	Packet scout;
+		scout.id_flux = 0;
+		scout.type = SYN;
+		scout.seq_num = seq;
+		scout.ack_num = 0;
+		scout.ecn = 0;
+		scout.ewnd = 1;
 
-	Packet pSyn;
-	pSyn.id_flux = 1;
-	pSyn.type = SYN;  // Le client qui désire établir une connexion avec un serveur va envoyer un premier paquet SYN (synchronized) au serveur.
-	pSyn.seq_num = A; // Le numéro de séquence de ce paquet est un nombre aléatoire A.
-	pSyn.ack_num = 0;
-	pSyn.ecn = 0;
-	pSyn.ewnd = 1;
-	pSyn.message[MSIZE] = "message tWH";
+	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+	printf("Synchronizing packet sent.\nWaiting for ack...\n\n");
 
-	CHECK(sendto(sok, &pSyn, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
-	CHECK((received = recvfrom(sok, &pSyn, sizeof(Packet), 0, (struct sockaddr *)&distTmp, &tmp)));
+	while(timeout(sok) == 0) //J'ai pas compris ca mais ca fonctionne
+	{
+		printf("Timed out.\nResending packet...\n\n");
 
-	uint16_t B = pSyn.seq_num;
+		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
+	}
 
-	Packet pAck;
-	pAck.id_flux = 1;
-	pAck.type = ACK;
-	pAck.seq_num = B + 1; // Le numéro du ACK est égal au numéro de séquence du paquet précédent (SYN-ACK) incrémenté de un (B + 1).
-	pAck.ack_num = A + 1; // Le numéro d'acquittement de ce paquet est défini selon le numéro de séquence reçu précédemment (par exemple : A + 1).
-	pAck.ecn = 0;
-	pAck.ewnd = 1;
-	pAck.message[MSIZE] = "message tWH";
-	CHECK(sendto(sok, &pAck, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
+	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
+	if(scout.type == (SYN + ACK) && scout.ack_num == (seq + 1)) //verif du type
+	{
+		printf("Ack + Syn received !\nSending ack aswell...\n\n");
+		display(scout);
+
+		scout.type = ACK;
+		scout.ack_num = scout.seq_num + 1; //voir wikipedia
+
+		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+
+		printf("Ack packet sent.\n\n");
+	}
+	printf("Communication established!\n");
+
+	return seq; //seq est le numéro de sequence utilisé dans l'envoi du pack SYN
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 /*
  * Function: stopandwait
@@ -76,7 +83,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 	p.ack_num = 0;
 	p.ecn = 0;
 	p.ewnd = 1;
-	p.message[MSIZE] = "Test";
+	//p.message[MSIZE] = "Test";
 
 	// Send, sendto, et sendmsg permettent de transmettre un mes­sage à destination d'une autre socket.
 
@@ -86,17 +93,19 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		printf("Sent.\n");
 		// Pas de message suivant si pas ack, donc possibilité d'un timeout infini
+		/*
 		if (timeout(sok)) // >1
 		{ 
 			printf("Des données sont disponibles maintenant\n");
 			break; // pas de timeout, on sort de la boucle
 		}
-		/* FD_ISSET(0, &rfds) est vrai */
+		// FD_ISSET(0, &rfds) est vrai
 		else // 0 
 		{ 
 			printf("Aucun acquittement recu\n");
 			printf("Aucune données durant les 5 secondes\n");
 		}
+		*/
 	}
 	long received;
 	socklen_t tmp = sizeof(struct sockaddr_in);
@@ -119,37 +128,6 @@ int quitter(char *message)
 }
 
 /*
- * Function: timeout
- * --------------------
- * Le timeout détermine le temps d'attente maximal de la réponse. Si le timeout est écoulé, 
- * l'échange se termine avec un compte-rendu d'erreur, de même, la réception d'une réponse 
- * après la fin du timeout est refusée.
- *
- *  sock : int 
- *
- *  returns: nothing
- */
-int timeout(int sok)
-{
-	fd_set rfds;
-	struct timeval tv;
-	int retval;
-
-	/* Surveiller stdin (fd 0) en attente d'entrées */
-	FD_ZERO(&rfds);		// efface un ensemble.
-	FD_SET(sok, &rfds); // ajoute un descripteur dans un ensemble (la socket)
-
-	/* Délai avant timeout : 5 secondes maxi */
-	tv.tv_sec = 5;
-	tv.tv_usec = 0;
-
-	// nfds : numéro du plus grand descripteur valide +1
-	CHECK(retval = select(sok + 1, &rfds, NULL, NULL, &tv)); // -1
-	/* Considérer tv comme indéfini maintenant ! */
-	return retval;
-}
-
-/*
  * Function:  gobackn
  * --------------------
  * Le Go-Back-N ARQ est un type de méthode Automatic Repeat-reQuest dans lequel l'émetteur envoie 
@@ -161,6 +139,8 @@ int timeout(int sok)
  *
  *  returns: nothing
  */
+
+/*
 void gobackn(int sok, struct sockaddr_in *dist)
 {
 	int fenetre = 1; // taille de la fenetre emission
@@ -192,13 +172,13 @@ void gobackn(int sok, struct sockaddr_in *dist)
 		long received;
 		socklen_t tmp = sizeof(struct sockaddr_in);
 		// serveur a acquitté tous les messages envoyés
-		/* A FAIRE : */
+		// A FAIRE : 
 		if (timeout(sok)) // >1
 		{ 
 			printf("Des données sont disponibles maintenant\n");
 			break; // pas de timeout, on sort de la boucle
 		}
-		/* FD_ISSET(0, &rfds) est vrai */
+		// FD_ISSET(0, &rfds) est vrai
 		else // 0 
 		{ 
 			printf("Aucun acquittement recu\n");
@@ -209,7 +189,7 @@ void gobackn(int sok, struct sockaddr_in *dist)
 		Msg2bSend += fenetre;
 	}
 }
-
+*/
 /*
  * Function: disconnection
  * ------------------------
@@ -220,6 +200,8 @@ void gobackn(int sok, struct sockaddr_in *dist)
  *
  *  returns: nothing
  */
+
+/*
 void disconnection(int sok, struct sockaddr_in *dist)
 {
 	// Manque gestion erreurs et timeout !!
@@ -228,10 +210,8 @@ void disconnection(int sok, struct sockaddr_in *dist)
 	socklen_t tmp = sizeof(struct sockaddr_in);
 	struct sockaddr_in distTmp; // structure d'@ pour @ distante temporaire
 
-	/*
-     *  A CONTINUER !!
-	 */
-}
+
+*/
 
 int main(int argc, char const *argv[])
 {
@@ -292,19 +272,19 @@ int main(int argc, char const *argv[])
 
 	// bind l'@ local à la socket
 	CHECK(bind(sok, (struct sockaddr *)&dist, sizeof(struct sockaddr_in)));
-
+	dist.sin_port = htons(distport);
 	//Function needed variables
 	//int* ack_rcvd; *ack_rcvd = 1;
 
 	// Three-way handshake
-	threeWayHandshake(sok, &dist);
+	uint16_t saved_sequence = threewayhandshake(sok, &dist);
+	printf("\n\nSaved sequence: %d\n", saved_sequence);
 
 	//Mode calls
 
 	if (mode == 0)
 	{
-		dist.sin_port = htons(distport); // port distant
-		stopandwait(sok, &dist);
+		//stopandwait(sok, &dist);
 	}
 	else
 	{

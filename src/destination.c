@@ -5,55 +5,44 @@ int main(int argc, char const *argv[])
 	//Checking usage
 	if (argc != 4)
 	{
-		fprintf(stdout, "usage: ./destination <IP_dist> <local_port> <dest_port>\n");
+		fprintf(stdout, "usage: ./destination <IP_dist> <local_port> <dist_port>\n");
 		exit(EXIT_FAILURE);
 	}
-
-	////////////////////////////////////////////////////////////////////////////////
-	// idem que source
-	////////////////////////////////////////////////////////////////////////////////
 
 	//Getting command args
 	const char *ipdist = argv[1];
 	int localport = atoi(argv[2]);
-	int destport = atoi(argv[3]);
+	int distport = atoi(argv[3]);
 
 	int sok;
-	struct sockaddr_in dest; // serveur
-	socklen_t dest_size = sizeof(struct sockaddr_in);
-	struct sockaddr_in source; // client
-	socklen_t source_size = sizeof(struct sockaddr_in);
+	struct sockaddr_in dist;
+	socklen_t addr_size = sizeof(struct sockaddr_in);
 	int domain = AF_INET;
 
 	CHECK(sok = socket(domain, SOCK_DGRAM, IPPROTO_UDP));
 
-	if (memset(&dest, '\0', sizeof(dest)) == NULL)
+	if (memset(&dist, '\0', sizeof(dist)) == NULL)
 		raler(1, "memset error");
 
-	dest.sin_family = domain;
-	dest.sin_port = htons(localport);
-	if (inet_aton(ipdist, &dest.sin_addr) == 0)
+	dist.sin_family = domain;
+	dist.sin_port = htons(localport);
+	if (inet_aton(ipdist, &dist.sin_addr) == 0)
 		raler(1, "inet_aton: adress not valid");
 
-	CHECK(bind(sok, (struct sockaddr *)&dest, sizeof(struct sockaddr_in)));
+	CHECK(bind(sok, (struct sockaddr *)&dist, sizeof(struct sockaddr_in)));
+	dist.sin_port = htons(distport);
 
-	////////////////////////////////////////////////////////////////////////////////
-
-	/* recv(),  recvfrom()  et  recvmsg()  sont  utilisés pour recevoir des messages depuis 
-   une socket, et peuvent servir sur une socket orientée  connexion  ou  non.
-
-    ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, 
-					struct sockaddr *src_addr, socklen_t *addrlen)  enregistre  le  message reçu  
-	dans  le tampon buf. Le processus appelant doit préciser la taille de ce tampon dans len.
-*/
+	uint16_t seq = rand() % 65534;	//déclaration hors du while car rand()
+	uint16_t saved_sequence;		//sauvegarde du numéro de sequence comme src
 
 	while (1)
 	{
-		Packet p; // paquet
+		Packet p;
 		long received;
 
-		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&source, &source_size)));
-		if (received > 0)
+		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *) &dist, &addr_size)));
+
+		if (received > 0) //FAIRE UN TEST GENERAL DES VALEURS DU PAQUET
 		{
 			switch (p.type)
 			{
@@ -62,36 +51,41 @@ int main(int argc, char const *argv[])
 				display(p);
 				p.type += ACK;
 				p.ack_num = p.seq_num + 1;
-				p.message[MSIZE] = "Acquittement";
-				dest.sin_port = htons(destport);
-				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dest, dest_size));
+				dist.sin_port = htons(distport);
+				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
 				fprintf(stdout, "Ack sent\n");
 				break;
 
-			case ACK: // Three way handshake
+			case ACK: //Cas uniquement utilisé par 3wayhandshake
 
-				// Manque gestion erreurs et timeout !!
 				fprintf(stdout, "Packet received\n");
-				display(p);
-				uint16_t A = p.seq_num;
-				p.type = ACK;
-				p.ack_num = A + 1; // Le numéro du ACK est égal au numéro de séquence du paquet précédent (SYN) incrémenté de un (A + 1)
-				p.message[MSIZE] = "Ack tWH";
-				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&source, sizeof(struct sockaddr_in)));
+				if(p.ack_num != seq + 1) //verif du numéro d'ack
+				{
+					fprintf(stdout, "Wrong ack received. Cannot establish connexion.\n");
+					break;
+				}
+				else
+				{
+					display(p);
+					saved_sequence = seq; //voir avant while
+					fprintf(stdout, "Connexion established!\n");
+				}
 				break;
 
 			case FIN:
 				break;
 
-			case SYN: // Three way handshake
+			case SYN:
 
-				// Manque gestion erreurs et timeout !!
 				fprintf(stdout, "Packet received\n");
 				display(p);
-				uint16_t B = rand() % 65535; // max uint16_t = 65535, aleatoire pour la securite
-				p.type = SYN;				 // Le serveur va répondre au client à l'aide d'un paquet SYN-ACK (synchronize, acknowledge).
-				p.seq_num = B;				 // Le numéro de séquence du paquet SYN-ACK est un nombre aléatoire B.
-				p.message[MSIZE] = "Syn tWH";
+
+				p.type = SYN + ACK;
+				p.ack_num = p.seq_num + 1; //voir wikipedia
+				p.seq_num = seq;
+
+				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) &dist, addr_size));
+
 				break;
 
 			case ACK + FIN:
@@ -102,6 +96,7 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
+	printf("%d", saved_sequence); //warning
 
 	exit(EXIT_SUCCESS);
 }

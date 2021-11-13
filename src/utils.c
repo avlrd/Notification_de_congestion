@@ -22,16 +22,34 @@ void display(Packet p)
 	printf("\n\n");
 }
 
-void test()
-{
-	Packet p;
-	p.id_flux = 1;
-	p.type = DATA;
-	p.seq_num = 1;
-	p.ack_num = 0;
-	p.ecn = 0;
-	p.ewnd = 1;
-	p.message[MSIZE] = "Message de test.";
 
-	display(p);
+/*
+ * Function: timeout
+ * --------------------
+ * Le timeout détermine le temps d'attente maximal de la réponse. Si le timeout est écoulé, 
+ * l'échange se termine avec un compte-rendu d'erreur, de même, la réception d'une réponse 
+ * après la fin du timeout est refusée.
+ *
+ *  sock : int 
+ *
+ *  returns: nothing
+ */
+int timeout(int sok)
+{
+	fd_set rfds;
+	struct timeval tv;
+	int retval;
+
+	/* Surveiller stdin (fd 0) en attente d'entrées */
+	FD_ZERO(&rfds);		// efface un ensemble.
+	FD_SET(sok, &rfds); // ajoute un descripteur dans un ensemble (la socket)
+
+	/* Délai avant timeout : 5 secondes maxi */
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+
+	// nfds : numéro du plus grand descripteur valide +1
+	CHECK(retval = select(sok + 1, &rfds, NULL, NULL, &tv)); // -1
+	/* Considérer tv comme indéfini maintenant ! */
+	return retval;
 }
