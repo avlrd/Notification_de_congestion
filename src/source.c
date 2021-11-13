@@ -21,28 +21,36 @@ int nbMsgBuffer = 0;
 uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 {
 	uint16_t seq = rand() % 65535;
-	int received;
-	
-	Packet scout;
-		scout.id_flux = 0;
-		scout.type = SYN;
-		scout.seq_num = seq;
-		scout.ack_num = 0;
-		scout.ecn = 0;
-		scout.ewnd = 1;
+	int received, timeoutCounter = 0;
 
-	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+	Packet scout;
+	scout.id_flux = 0;
+	scout.type = SYN;
+	scout.seq_num = seq;
+	scout.ack_num = 0;
+	scout.ecn = 0;
+	scout.ewnd = 1;
+
+	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 	printf("Synchronizing packet sent.\nWaiting for ack...\n\n");
 
-	while(timeout(sok) == 0) //J'ai pas compris ca mais ca fonctionne
+	while (!timeout(sok, 5)) // while there is a timeout (timeout == 0)
 	{
-		printf("Timed out.\nResending packet...\n\n");
-
-		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
+		timeoutCounter++;
+		if (timeoutCounter < 4)
+		{
+			printf("Time out n°%d.\nResending packet...\n\n", timeoutCounter);
+			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
+		}
+		else
+		{
+			fprintf(stderr, "Connexion non établie");
+			exit(1);
+		}
 	}
 
 	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
-	if(scout.type == (SYN + ACK) && scout.ack_num == (seq + 1)) //verif du type
+	if (scout.type == (SYN + ACK) && scout.ack_num == (seq + 1)) //verif du type
 	{
 		printf("Ack + Syn received !\nSending ack aswell...\n\n");
 		display(scout);
@@ -50,7 +58,7 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 		scout.type = ACK;
 		scout.ack_num = scout.seq_num + 1; //voir wikipedia
 
-		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 
 		printf("Ack packet sent.\n\n");
 	}

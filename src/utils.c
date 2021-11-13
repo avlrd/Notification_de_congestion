@@ -34,7 +34,7 @@ void display(Packet p)
  *
  *  returns: nothing
  */
-int timeout(int sok)
+int timeout(int sok,int delai)
 {
 	fd_set rfds;
 	struct timeval tv;
@@ -44,8 +44,8 @@ int timeout(int sok)
 	FD_ZERO(&rfds);		// efface un ensemble.
 	FD_SET(sok, &rfds); // ajoute un descripteur dans un ensemble (la socket)
 
-	/* Délai avant timeout : 5 secondes maxi */
-	tv.tv_sec = 5;
+	/* Délai avant timeout : delai = 5 secondes maxi par exemple */
+	tv.tv_sec = delai;
 	tv.tv_usec = 0;
 
 	// nfds : numéro du plus grand descripteur valide +1

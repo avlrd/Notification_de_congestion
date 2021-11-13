@@ -106,6 +106,6 @@ typedef struct packet
  */
 void display(Packet p);
 
-int timeout(int sok);
+int timeout(int sok, int delai);
 
 #endif /* __UTILS_H__ */
