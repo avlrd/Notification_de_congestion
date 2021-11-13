@@ -37,7 +37,7 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 	while (!timeout(sok, 5)) // while there is a timeout (timeout == 0)
 	{
 		timeoutCounter++;
-		if (timeoutCounter < 4)
+		if (timeoutCounter < NmaxT)
 		{
 			printf("Time out n°%d.\nResending packet...\n\n", timeoutCounter);
 			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
