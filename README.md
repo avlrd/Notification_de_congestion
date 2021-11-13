@@ -11,7 +11,9 @@
 
 > Dans le terminal saisissez : 
 
-    make 
+    make source MARQ=S (OU MARQ=G)
+    make destination
+    make medium ET/OU MOPT=votreOption
 
 > Cela va compiler : 
 

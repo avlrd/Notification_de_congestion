@@ -32,15 +32,19 @@ int main(int argc, char const *argv[])
 	CHECK(bind(sok, (struct sockaddr *)&dist, sizeof(struct sockaddr_in)));
 	dist.sin_port = htons(distport);
 
-	uint16_t seq = rand() % 65534;	//déclaration hors du while car rand()
-	uint16_t saved_sequence;		//sauvegarde du numéro de sequence comme src
+	/*
+	 * max uint16_t = 65535, aleatoire pour la securite
+	 * déclaration hors du while car rand()
+	*/
+	uint16_t seq = rand() % 65534;
+	uint16_t saved_sequence; //sauvegarde du numéro de sequence comme src
 
 	while (1)
 	{
 		Packet p;
 		long received;
 
-		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *) &dist, &addr_size)));
+		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, &addr_size)));
 
 		if (received > 0) //FAIRE UN TEST GENERAL DES VALEURS DU PAQUET
 		{
@@ -71,7 +75,7 @@ int main(int argc, char const *argv[])
 				else
 				{
 					display(p);
-					saved_sequence = seq; //voir avant while
+					saved_sequence = seq; //saved_sequence=seqAlea
 					fprintf(stdout, "Connexion established!\n");
 				}
 				break;
@@ -82,12 +86,12 @@ int main(int argc, char const *argv[])
 			case SYN:
 
 				display(p);
+				// Serveur repond client avec paquet synchronize-acknowledge.
+				p.type = SYN + ACK;		   
+				p.ack_num = p.seq_num + 1; // numeroACK=numPreviousSEQ (SYN) + 1
+				p.seq_num = seq;		   // numSeq SYN-ACK nombre aléatoire.
 
-				p.type = SYN + ACK;
-				p.ack_num = p.seq_num + 1; //voir wikipedia
-				p.seq_num = seq;
-
-				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) &dist, addr_size));
+				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
 
 				break;
 

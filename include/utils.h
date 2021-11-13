@@ -43,6 +43,12 @@
 #define SYN 1
 #define DATA 0
 
+/*
+ * Macro: Miscellaneous
+ * -------------------- 
+ */
+#define NmaxT 4 //Number max of Time out
+
 /** \def CHECK
 * \brief Check the return values (system calls)
 * \param op return value
@@ -106,6 +112,6 @@ typedef struct packet
  */
 void display(Packet p);
 
-int timeout(int sok);
+int timeout(int sok, int delai);
 
 #endif /* __UTILS_H__ */

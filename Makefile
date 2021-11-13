@@ -18,18 +18,6 @@
 # Mode    : Editable according to the needs :
 MODE = C # C (Custom), N (Normal), MF (Multiple Files)
 
-# Custom MODE variables
-# ------------------------
-# 
-#MODE ARQ for ./source -> S = stopandwait OR G = gobackn
-MOPT = #OPTION for the medium
-ifeq ($(strip $(MARQ)),S) 
-	MARQS = $(strip stopandwait)
-$(info $(MARQ))
-else ifeq ($(strip $(MARQ)),G) 
-	MARQS = $(strip gobackn)
-endif
-
 # Miscellaneous variables
 # ------------------------
 whoami := $(shell whoami)
@@ -42,6 +30,21 @@ BPATH   = bin/
 NAME    = # Binary file name
 # We look in the directory specified by -I and exhaustive warnings:
 CFLAGS  = -I $(IPATH) -Wall -Wextra -Werror
+
+# Custom MODE variables
+# ------------------------
+# 
+#MODE ARQ for ./source -> S = stopandwait OR G = gobackn
+MOPT = #OPTION for the medium
+ifeq ($(strip $(MARQ)),S) 
+	MARQS = $(strip stopandwait)
+else ifeq ($(strip $(MARQ)),G) 
+	MARQS = $(strip gobackn)
+endif
+# File source, destination and medium.
+FMS = $(BPATH)source
+FMD = $(BPATH)destination
+FME = medium.py 
 
 # Define 
 # ------------------------
@@ -172,19 +175,29 @@ infosC :
 # 127.0.0.1 -> standard address for IPv4 loopback traffic
 
 source : 	
+	@if [ ! -f $(FMS) ] ; then                         \
+		make $(NPS);                                   \
+	fi
 	@if [ "$(strip $(MARQS))" = "" ]; then             \
 		echo Effectuez : MARQ=S ou MARQ=G;             \
 		exit 1;                                        \
-    fi  
-	./source $(MARQS) 127.0.0.1 3333 4444
+	fi  
+	./bin/source $(MARQS) 127.0.0.1 3333 4444
 	
 destination :
-	./destination 127.0.0.1 6666 5555
+	@if [ ! -f $(FMD) ] ; then                         \
+		make $(NPS);                                   \
+	fi
+	./bin/destination 127.0.0.1 6666 5555
 
 medium :
+	@if [ ! -f $(FME) ] ; then                         \
+		echo Fichier \"medium.py\" manquant;           \
+		exit 1;                                        \
+	fi
 	python3 medium.py $(MOPT)
 
-# clean
+# clean  
 # ---------------------------------
 # Rules for cleaning the directory how to delete all the object files and executables so that the directory is ' clean '.
 
