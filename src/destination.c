@@ -45,7 +45,7 @@ int main(int argc, char const *argv[])
 		long received;
 		// int B = 1;
 		// if(B)  cas ou pas de connexion, refus message
-		
+
 		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, &addr_size)));
 
 		if (received > 0) //FAIRE UN TEST GENERAL DES VALEURS DU PAQUET
@@ -69,7 +69,7 @@ int main(int argc, char const *argv[])
 
 			case ACK: //Cas uniquement utilisé par 3wayhandshake
 
-				if(p.ack_num != seq + 1) //verif du numéro d'ack
+				if (p.ack_num != seq + 1) //verif du numéro d'ack
 				{
 					fprintf(stdout, "Wrong ack received. Cannot establish connexion.\n");
 					break;
@@ -82,14 +82,54 @@ int main(int argc, char const *argv[])
 				}
 				break;
 
-			case FIN:
+			case FIN: 
+				// deconnexion
+				CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
+				printf("TYPE : %d ACK : %d\n\n", p.type, p.ack_num);
+				// a decommenter : 
+				// if (p.type == (FIN) && p.ack_num == (p.seq_num + 1))
+				// {
+					printf("Fin received !\n\n\n");
+					p.type = FIN + ACK;
+					//p.seq_num = p.seq_num + 1;
+					p.ack_num = p.seq_num + 1;
+					p.seq_num = seq;
+					CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size)); 
+					display(p);
+				// }
+				int timeoutCounter, messageOk = 0;
+				do
+				{
+					while (!timeout(sok, 5)) 
+					{
+						timeoutCounter++;
+						if (timeoutCounter < NmaxT)
+						{
+							p.type = FIN;
+							p.seq_num = p.seq_num + 1;
+							printf("Time out n°%d.\nResending packet...\n\n\n", timeoutCounter);
+							CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size)); 
+						}
+						else
+						{
+							fprintf(stderr, "Deconnexion serveur non effectuee ");
+							exit(1);
+						}
+					}
+					CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
+					if ((p.type == (FIN + ACK) && p.ack_num == (p.seq_num + 1)))
+						messageOk = 1;
+					display(p);
+					timeoutCounter = 0;
+				} while (!messageOk);
+
 				break;
 
 			case SYN:
 
 				display(p);
 				// Serveur repond client avec paquet synchronize-acknowledge.
-				p.type = SYN + ACK;		   
+				p.type = SYN + ACK;
 				p.ack_num = p.seq_num + 1; // numeroACK=numPreviousSEQ (SYN) + 1
 				p.seq_num = seq;		   // numSeq SYN-ACK nombre aléatoire.
 

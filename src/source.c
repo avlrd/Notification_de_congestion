@@ -21,7 +21,7 @@ int nbMsgBuffer = 0;
 uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 {
 	uint16_t seq = rand() % 65535;
-	int received, timeoutCounter = 0;
+	int received, varGarbage, timeoutCounter = 0;
 
 	Packet scout;
 	scout.id_flux = 0;
@@ -50,19 +50,25 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 		}
 	}
 
-	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
-	if (scout.type == (SYN + ACK) && scout.ack_num == (seq + 1)) //verif du type
+	do
 	{
-		printf("Ack + Syn received !\nSending ack aswell...\n\n");
-		display(scout);
+		varGarbage = 0;
+		CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
+		if (scout.type == (SYN + ACK) && scout.ack_num == (seq + 1)) //verif du type
+		{
+			printf("Ack + Syn received !\nSending ack aswell...\n\n");
+			display(scout);
 
-		scout.type = ACK;
-		scout.ack_num = scout.seq_num + 1; //voir wikipedia
+			scout.type = ACK;
+			scout.ack_num = scout.seq_num + 1; //voir wikipedia
 
-		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
+			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 
-		printf("Ack packet sent.\n\n");
-	}
+			printf("Ack packet sent.\n\n");
+		} else
+			varGarbage = 1;
+	} while (varGarbage || timeout(sok, 10));
+
 	printf("Communication established!\n");
 
 	return seq; //seq est le numéro de sequence utilisé dans l'envoi du pack SYN
@@ -73,12 +79,12 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 void stopandwait(int sok, struct sockaddr_in *dist)
 {
 	int received;
-	int nb_msg = 5;
+	int nb_msg = 1;
 	int i;
 
 	Packet p;
 
-	for(i = 0; i < nb_msg; i++)
+	for (i = 0; i < nb_msg; i++)
 	{
 		p.seq_num = i;
 		p.ack_num = 0;
@@ -88,18 +94,18 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		p.ewnd = 1;
 		strcpy(p.message, "Test");
 
-		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		printf("Packet n°%d sent, waiting for ack...\n", p.seq_num);
 
-		while(timeout(sok, 5) == 0)
+		while (timeout(sok, 5) == 0)
 		{
 			printf("Timed out.\nResending packet...\n\n");
 
-			CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+			CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		}
 
 		CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
-		if(p.type == ACK && p.ack_num == i+1)
+		if (p.type == ACK && p.ack_num == i + 1)
 		{
 			printf("Ack received!\n");
 			display(p);
@@ -220,7 +226,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t lastSeq)
 			}
 			else
 			{
-				fprintf(stderr, "Deconnexion non effectuee");
+				fprintf(stderr, "Deconnexion client non effectuee");
 				exit(1);
 			}
 		}
@@ -229,7 +235,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t lastSeq)
 			messageOk = 1;
 		display(scout);
 		timeoutCounter = 0;
-	} while (!messageOk); 
+	} while (!messageOk);
 	printf("Fin + Ack received !\n\n\n");
 
 	/*
