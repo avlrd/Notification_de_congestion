@@ -7,12 +7,13 @@
 
 Pour tester il faut faire dans l'ordre:
 
-- Ouvrir 2 terminaux
-- 		make
+- Ouvrir 3 terminaux
 	dans n'importe lequel
--		./bin/destination 127.0.0.1 6666 5555
-	dans un premier terminal
--		./bin/source stopandwait 127.0.0.1 5555 6666
-	dans le deuxieme.
+-		make medium
+	dans un deuxieme terminal
+-		make destination
+	dans un troisieme terminal
+-		make source MARQ=S
+
 
 L'ordre est important. Il faudra quand meme tester dans le desordre pour la gestion d'erreur.

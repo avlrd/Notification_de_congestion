@@ -32,8 +32,9 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 	scout.ewnd = 1;
 
 	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
-	printf("Synchronizing packet sent.\nWaiting for ack...\n\n");
+	printf("Synchronizing packet sent.\nWaiting for syn-ack...\n\n");
 
+	/* Surveiller socket en attente d'entrées */
 	while (!timeout(sok, 5)) // while there is a timeout (timeout == 0)
 	{
 		timeoutCounter++;
@@ -209,17 +210,80 @@ void gobackn(int sok, struct sockaddr_in *dist)
  *  returns: nothing
  */
 
-/*
-void disconnection(int sok, struct sockaddr_in *dist)
+void disconnection(int sok, struct sockaddr_in *dist, uint16_t lastSeq)
 {
-	// Manque gestion erreurs et timeout !!
-	uint16_t A = rand() % 65535; // max uint16_t = 65535, aleatoire pour la securite
-	long received;
-	socklen_t tmp = sizeof(struct sockaddr_in);
-	struct sockaddr_in distTmp; // structure d'@ pour @ distante temporaire
+	int received, timeoutCounter = 0;
+	int messageOk = 0;
 
+	Packet scout;
+	scout.id_flux = 0;
+	scout.type = FIN;
+	scout.seq_num = lastSeq;
+	scout.ack_num = 0;
+	scout.ecn = 0;
+	scout.ewnd = 1;
 
-*/
+	do
+	{
+		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
+		printf("Synchronizing packet sent.\nWaiting for fin-ack...\n\n");
+
+		/* Envoi message tant qu'il pas recu et que < nb timeout/d'envoi
+		 * timeout -> Surveiller socket en attente d'entrées 
+		 */
+		while (!timeout(sok, 5)) // while there is a timeout (timeout == 0)
+		{
+			timeoutCounter++;
+			if (timeoutCounter < NmaxT)
+			{
+				printf("Time out n°%d.\nResending packet...\n\n\n", timeoutCounter);
+				CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
+			}
+			else
+			{
+				fprintf(stderr, "Deconnexion non effectuee");
+				exit(1);
+			}
+		}
+		CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
+		if ((scout.type == (FIN + ACK) && scout.ack_num == (lastSeq + 1)))
+			messageOk = 1;
+		display(scout);
+		timeoutCounter = 0;
+	} while (!messageOk); 
+	printf("Fin + Ack received !\n\n\n");
+
+	/*
+	* ICI on arrive est en HALF CLOSED (SERVEUR peut encore envoyer au CLIENT)
+	*
+	* Si pas de timeout on recoit message FIN et on renvoi FIN+ACK
+	* donc si timeout on ferme la connection après le délai du timeout :
+	*/
+	int varGarbage;
+	do
+	{
+		varGarbage = 0;
+		// on intercepte le message
+		CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
+		// si le message est FIN et seq+1 on envoi un autre FIN + ACK
+		// Receive FIN, logiquement dernier message
+		if (scout.type == (FIN) && scout.ack_num == (lastSeq + 1))
+		{
+			printf("Fin received !\n\n\n");
+			scout.type = FIN + ACK;
+			scout.seq_num = lastSeq + 1;
+			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
+			display(scout);
+		}
+		else
+			varGarbage = 1;
+		// si le message est recu le serveur ne renvoi rien donc timeout, donc on s'arrete, on peut deconnecter
+	} while (varGarbage || timeout(sok, 10)); // while there is no timeout (timeout == 0) -> there is still a message
+	/*
+	* CLOSED
+	*/
+	printf("Disconnected!\n");
+}
 
 int main(int argc, char const *argv[])
 {
@@ -302,6 +366,7 @@ int main(int argc, char const *argv[])
 	//test();
 
 	fprintf(stdout, "Done.\n");
+	disconnection(sok, &dist, saved_sequence);
 	CHECK(close(sok));
 	exit(EXIT_SUCCESS);
 }

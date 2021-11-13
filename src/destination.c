@@ -43,7 +43,9 @@ int main(int argc, char const *argv[])
 	{
 		Packet p;
 		long received;
-
+		// int B = 1;
+		// if(B)  cas ou pas de connexion, refus message
+		
 		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, &addr_size)));
 
 		if (received > 0) //FAIRE UN TEST GENERAL DES VALEURS DU PAQUET
