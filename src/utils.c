@@ -25,7 +25,6 @@ void display(Packet p)
 	printf("\n\n");
 }
 
-
 /*
  * Function: timeout
  * --------------------
@@ -43,7 +42,7 @@ int timeout(int sok,int delai)
 	struct timeval tv;
 	int retval;
 
-	/* Surveiller stdin (fd 0) en attente d'entrées */
+	/* Surveiller socket en attente d'entrées */
 	FD_ZERO(&rfds);		// efface un ensemble.
 	FD_SET(sok, &rfds); // ajoute un descripteur dans un ensemble (la socket)
 
