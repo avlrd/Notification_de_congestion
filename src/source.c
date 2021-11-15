@@ -14,63 +14,59 @@ Packet MsgBuffer[MAX];
 int nbMsgBuffer = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
-/*
-	Renvoie un uint16_t (short int) car il faut sauvegarder le numéro de séquence utilisé pour communiquer dans le sens client -> serveur (source -> destination).
-	Voir destination.c pour comprendre le fonctionnement.
-*/
+
 uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 {
 	uint16_t seq = rand() % 65535;
-	int received, varGarbage, timeoutCounter = 0;
+	int received, timeoutCounter = 0;
 
 	Packet scout;
-	scout.id_flux = 0;
-	scout.type = SYN;
-	scout.seq_num = seq;
-	scout.ack_num = 0;
-	scout.ecn = 0;
-	scout.ewnd = 1;
+		scout.id_flux = 0;
+		scout.type = SYN;
+		scout.seq_num = seq;
+		scout.ack_num = 0;
+		scout.ecn = 0;
+		scout.ewnd = 1;
 
 	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 	printf("Synchronizing packet sent.\nWaiting for syn-ack...\n\n");
 
-	/* Surveiller socket en attente d'entrées */
-	while (!timeout(sok, 5)) // while there is a timeout (timeout == 0)
+	while (!timeout(sok, 5))
 	{
 		timeoutCounter++;
 		if (timeoutCounter < NmaxT)
 		{
-			printf("Time out n°%d.\nResending packet...\n\n", timeoutCounter);
-			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in))); //Renvoi du packet en cas de timeout
+			printf("Timed out (%d).\nResending packet...\n\n", timeoutCounter);
+			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		}
 		else
 		{
-			fprintf(stderr, "Connexion non établie");
-			exit(1);
+			printf("Connexion couldn't be established!\nExiting...\n\n");
+			exit(EXIT_FAILURE);
 		}
 	}
 
-	do
+	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
+	if (scout.type == (SYN + ACK) && scout.ack_num == (seq + 1))
 	{
-		varGarbage = 0;
-		CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
-		if (scout.type == (SYN + ACK) && scout.ack_num == (seq + 1)) //verif du type
-		{
-			printf("Ack + Syn received !\nSending ack aswell...\n\n");
-			display(scout);
+		printf("Ack + Syn received !\nSending ack aswell...\n\n");			display(scout);
 
-			scout.type = ACK;
-			scout.ack_num = scout.seq_num + 1; //voir wikipedia
+		scout.type = ACK;			
+		scout.ack_num = scout.seq_num + 1;
 
-			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
+		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 
-			printf("Ack packet sent.\n\n");
-		} else
-			varGarbage = 1;
-	} while (varGarbage || timeout(sok, 10));
-
+		printf("Ack packet sent.\n\n");
+	}
+	else
+	{
+		if(scout.type != (SYN + ACK))
+			printf("Received wrong type packet!\nExiting...\n\n");
+		if(scout.ack_num != (seq + 1))
+			printf("Received ack of the wrong packet!\nExiting...\n\n");
+		exit(EXIT_FAILURE);
+	}
 	printf("Communication established!\n");
-
 	return seq; //seq est le numéro de sequence utilisé dans l'envoi du pack SYN
 }
 
@@ -84,7 +80,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 
 	Packet p;
 
-	for (i = 0; i < nb_msg; i++)
+	for(i = 0; i < nb_msg; i++)
 	{
 		p.seq_num = i;
 		p.ack_num = 0;
@@ -97,7 +93,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		printf("Packet n°%d sent, waiting for ack...\n", p.seq_num);
 
-		while (timeout(sok, 5) == 0)
+		while(!timeout(sok, 5))
 		{
 			printf("Timed out.\nResending packet...\n\n");
 
@@ -105,7 +101,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		}
 
 		CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
-		if (p.type == ACK && p.ack_num == i + 1)
+		if(p.type == ACK && p.ack_num == i + 1)
 		{
 			printf("Ack received!\n");
 			display(p);
@@ -121,18 +117,6 @@ int quitter(char *message)
 	return (strncmp(message, "exit(q)", 7) == 0) || (strncmp(message, "\0", 1) == 0);
 }
 
-/*
- * Function:  gobackn
- * --------------------
- * Le Go-Back-N ARQ est un type de méthode Automatic Repeat-reQuest dans lequel l'émetteur envoie 
- * un certain nombre de trames, regroupées en une fenêtre, sans recevoir d'acquittement de la part 
- * du destinataire pour chaque trame.
- *
- *  sock : int 
- *  dist : struct sockaddr_in*
- *
- *  returns: nothing
- */
 
 /*
 void gobackn(int sok, struct sockaddr_in *dist)
@@ -184,16 +168,6 @@ void gobackn(int sok, struct sockaddr_in *dist)
 	}
 }
 */
-/*
- * Function: disconnection
- * ------------------------
- * Fermeture de la connexion entre client et serveur
- *
- *  sock : int 
- *  dist : struct sockaddr_in*
- *
- *  returns: nothing
- */
 
 void disconnection(int sok, struct sockaddr_in *dist, uint16_t lastSeq)
 {
@@ -296,49 +270,31 @@ int main(int argc, char const *argv[])
 	int distport = atoi(argv[4]);
 
 	//Ergonomy
-	int domain = AF_INET; // = Format d'adresse, Internet = Adresses IP  (famille IPv4)
+	int domain = AF_INET;
 
 	//Socket init and bind
 	int sok;
-	struct sockaddr_in dist; // structure d'@ pour @ distante
+	struct sockaddr_in dist;
 
-	// IPv4, datagram-based protocol, IPPROTO_UDP
-	CHECK(sok = socket(domain, SOCK_DGRAM, IPPROTO_UDP)); // cree un descripteur/socket -> int socket(famille,type,protocole)
+	CHECK(sok = socket(domain, SOCK_DGRAM, IPPROTO_UDP));
 
-	if (memset(&dist, '\0', sizeof(dist)) == NULL) // reinitialise contenu de struct dist a O
+	if (memset(&dist, '\0', sizeof(dist)) == NULL)
 		raler(1, "memset error");
-
-	// htons() convertit un entier court non signé hostshort depuis l'ordre des octets de l'hôte vers celui du réseau.
-	// -> ( big ou little endian géré automatiquement)
 
 	dist.sin_family = domain;		  // distant sera IPv4
 	dist.sin_port = htons(localport); // port local
 
-	/* inet_aton(const char *cp, struct in_addr *inp) convertit l'adresse Internet de l'hôte cp 
-	   depuis la notation IPv4 avec nombres et points vers une forme binaire (dans l'ordre d'octet
-	   du réseau), et la  stocke  dans  la structure  pointée  par  inp.  inet_aton()  renvoie  
-	   une valeur non nulle si l'adresse est valable, et zéro sinon. L'adresse fournie à cp peut 
-	   avoir l'une des formes suivantes
-	*/
-
 	if (inet_aton(ipdist, &dist.sin_addr) == 0)
 		raler(1, "inet_aton: adress not valid");
 
-	/* bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) affecte l'adresse 
-	  spécifiée dans addr à la socket référencée par le descripteur de fichier sockfd. */
-
-	// bind l'@ local à la socket
 	CHECK(bind(sok, (struct sockaddr *)&dist, sizeof(struct sockaddr_in)));
 	dist.sin_port = htons(distport);
-	//Function needed variables
-	//int* ack_rcvd; *ack_rcvd = 1;
 
 	// Three-way handshake
 	uint16_t saved_sequence = threewayhandshake(sok, &dist);
-	printf("\n\nSaved sequence: %d\n", saved_sequence);
+	//printf("\n\nSaved sequence: %d\n", saved_sequence);
 
 	//Mode calls
-
 	if (mode == 0)
 	{
 		stopandwait(sok, &dist);
@@ -347,8 +303,6 @@ int main(int argc, char const *argv[])
 	{
 		//gobackn();
 	}
-
-	//test();
 
 	fprintf(stdout, "Done.\n");
 	disconnection(sok, &dist, saved_sequence);
