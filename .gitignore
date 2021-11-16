@@ -2,5 +2,4 @@ source
 destination
 bin/
 obj/
-src/test.c
 .vscode

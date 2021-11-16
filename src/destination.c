@@ -1,5 +1,36 @@
 #include "utils.h"
 
+void disconnection(int sok, struct sockaddr_in* dist, uint16_t saved_seq)
+{
+	int timeoutcounter = 0;
+
+	Packet scout;
+		scout.id_flux = 0;
+		scout.type = FIN;
+		scout.seq_num = saved_seq;
+		scout.ack_num = 0;
+		scout.ecn = 0;
+		scout.ewnd = 1;
+
+	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+	printf("FIN packet sent.\nWaiting for ack...\n\n");
+
+	while(!timeout(sok, 5))
+	{
+		timeoutcounter++;
+		if(timeoutcounter < NmaxT)
+		{
+			printf("Timed out (%d)\nResending packet...\n\n", timeoutcounter);
+			CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+		}
+		else
+		{
+			printf("Could not disconnect normally!\nExiting program...\n\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
 int main(int argc, char const *argv[])
 {
 	//Checking usage
@@ -38,13 +69,12 @@ int main(int argc, char const *argv[])
 	*/
 	uint16_t seq = rand() % 65534;
 	uint16_t saved_sequence; //sauvegarde du numéro de sequence comme src
-
+	int checkFIN = 0;
+	
 	while (1)
 	{
 		Packet p;
-		long received;
-		// int B = 1;
-		// if(B)  cas ou pas de connexion, refus message
+		int received;
 
 		CHECK((received = recvfrom(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, &addr_size)));
 
@@ -67,77 +97,60 @@ int main(int argc, char const *argv[])
 				fprintf(stdout, "Ack sent\n");
 				break;
 
-			case ACK: //Cas uniquement utilisé par 3wayhandshake
+			case ACK:
 
-				if (p.ack_num != seq + 1) //verif du numéro d'ack
+				if (p.ack_num != seq + 1)
 				{
-					fprintf(stdout, "Wrong ack received. Cannot establish connexion.\n");
+					fprintf(stdout, "Wrong ack received.\n");
 					break;
 				}
 				else
 				{
 					display(p);
-					saved_sequence = seq; //saved_sequence=seqAlea
-					fprintf(stdout, "Connexion established!\n");
+					if(checkFIN == 1)
+					{
+						fprintf(stdout, "Received ack!\nExiting.\n\n\n");
+						CHECK(close(sok));
+						exit(EXIT_SUCCESS);
+					}
+					else
+					{
+						saved_sequence = seq;
+						fprintf(stdout, "Received ack!\nConnexion established.\n\n\n");
+					}
+						
 				}
+
 				break;
 
-			case FIN: 
-				// deconnexion
-				CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
-				printf("TYPE : %d ACK : %d\n\n", p.type, p.ack_num);
-				// a decommenter : 
-				// if (p.type == (FIN) && p.ack_num == (p.seq_num + 1))
-				// {
-					printf("Fin received !\n\n\n");
-					p.type = FIN + ACK;
-					//p.seq_num = p.seq_num + 1;
-					p.ack_num = p.seq_num + 1;
-					p.seq_num = seq;
-					CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size)); 
-					display(p);
-				// }
-				int timeoutCounter, messageOk = 0;
-				do
-				{
-					while (!timeout(sok, 5)) 
-					{
-						timeoutCounter++;
-						if (timeoutCounter < NmaxT)
-						{
-							p.type = FIN;
-							p.seq_num = p.seq_num + 1;
-							printf("Time out n°%d.\nResending packet...\n\n\n", timeoutCounter);
-							CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size)); 
-						}
-						else
-						{
-							fprintf(stderr, "Deconnexion serveur non effectuee ");
-							exit(1);
-						}
-					}
-					CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
-					if ((p.type == (FIN + ACK) && p.ack_num == (p.seq_num + 1)))
-						messageOk = 1;
-					display(p);
-					timeoutCounter = 0;
-				} while (!messageOk);
+			case FIN:
+
+				printf("FIN received!\nSending ack...\n\n");
+				display(p);
+
+				p.type = ACK;
+				p.ack_num = p.seq_num + 1;
+
+				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
+				printf("Ack sent.\n\n");
+
+				checkFIN = 1;
+				disconnection(sok, &dist, saved_sequence);
 
 				break;
 
 			case SYN:
 
+				printf("SYN received!\nSending ack...\n\n");
 				display(p);
-				// Serveur repond client avec paquet synchronize-acknowledge.
+
 				p.type = SYN + ACK;
-				p.ack_num = p.seq_num + 1; // numeroACK=numPreviousSEQ (SYN) + 1
-				p.seq_num = seq;		   // numSeq SYN-ACK nombre aléatoire.
+				p.ack_num = p.seq_num + 1;
+				p.seq_num = seq;
 
 				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
+				printf("Ack sent.\n\n");
 
-				break;
-
-			case ACK + FIN:
 				break;
 
 			case RST:
@@ -145,7 +158,7 @@ int main(int argc, char const *argv[])
 			}
 		}
 	}
-	printf("%d", saved_sequence); //warning
 
+	CHECK(close(sok));
 	exit(EXIT_SUCCESS);
 }
