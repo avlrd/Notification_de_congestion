@@ -78,6 +78,8 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 
 	for(i = 0; i < nb_msg; i++)
 	{
+		//Initializing Packet values inside of 'for' because recvfrom will
+		//override some values so it has to be reinitialized
 		if(p.seq_num == 1)
 			p.seq_num = 0;
 		else
@@ -89,9 +91,11 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		p.ewnd = 1;
 		strcpy(p.message, "Test");
 
+		//Sending packet
 		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		printf("Packet n°%d sent, waiting for ack...\n", i);
 
+		//Timeout handling
 		while(!timeout(sok, 5))
 		{
 			timeoutcounter++;
@@ -102,11 +106,12 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 			}
 			else
 			{
-				printf("Ack not received...\nExiting...\n\n");
+				printf("Ack not received...\n\n");
 			}
 			CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 		}
 
+		//Receiving acks
 		CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
 		if(p.type == ACK && p.ack_num == p.seq_num + 1)
 		{
@@ -120,20 +125,69 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/*
+
 void gobackn(int sok, struct sockaddr_in* dist)
 {
-	int received, timeoutcounter = 0;
+	int received;
+	int counter = 0, countermax = 10;	//compte le nombre de messages
+	int wndsize = 1;
 
+	int i;
+
+	Packet p;
+		p.seq_num = -1;
+		p.id_flux = 1;
+		p.ecn = 0;
+		strcpy(p.message, "Test");
+
+
+	//L'idée est d'envoyer un nombre de message equivalent à la taille
+	//de la fenetre de congestion, d'attendre en permanence la reception d'un
+	//message et des qu'on a recu tous les acquittements, envoyer une nouvelle
+	//vague. Cependant avec la gestion des erreurs et des timeouts, nous ne
+	//sommes pas parvenus a trouver un moyen d'implémenter cela dans le temps
+	//imparti.
+	while(counter < countermax - 1)
+	{
+		p.seq_num++;
+		p.ack_num = 0;
+		p.ewnd = wndsize;
+		p.type = DATA;
+
+		for(i = 0; i < wndsize; i++)		//Sending packet waves
+		{
+			if(counter++ > countermax)
+				break;
+			CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
+			printf("Packet n°%d sent, waiting for ack...\n\n", counter);
+		}
+
+		int tmpsize = wndsize;
+
+		while(tmpsize > 0)					//waiting for all ack
+		{
+			CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
+			if(p.type == ACK && p.ack_num == p.seq_num + 1)
+			{
+				printf("Ack received!\n");
+				display(p);
+			}
+			else
+				printf("Error!!!\n");
+			wndsize++;
+			tmpsize--;
+		}
+	}
+	printf("Finished sending messages.\n\n\n");
 }
-*/
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 {
 	int received, timeoutcounter = 0;
 
-	Packet scout;
+	Packet scout;									//init FIN packet
 		scout.id_flux = 0;
 		scout.type = FIN;
 		scout.seq_num = savedseq;
@@ -142,6 +196,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 		scout.ewnd = 1;
 		strcpy(scout.message, "Disconnecting now");
 	
+	//Sending FIN packet
 	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
 	printf("FIN packet sent.\nWaiting for ack...\n\n");
 
@@ -160,6 +215,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 		}
 	}
 
+	//Receiving ack
 	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
 	if((scout.type == ACK) && (scout.ack_num == (savedseq + 1)))
 	{
@@ -179,6 +235,8 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 		exit(EXIT_FAILURE);
 	}
 
+	//Forcing quit if FIN is not received from destination 
+	//This way, the program can exit and not be running indefinitely
 	printf("If this program does not receive any FIN packet from server in 30 seconds, it will force quit.\n\n");
 	timeoutcounter = 0;
 	while(!timeout(sok, 1))
@@ -193,6 +251,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 		}
 	}
 
+	//Receiving FIN and sending ACK
 	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
 	if(scout.type == FIN)
 	{
@@ -272,7 +331,7 @@ int main(int argc, char const *argv[])
 	}
 	else
 	{
-		//gobackn(sok, &dist);
+		gobackn(sok, &dist);
 	}
 
 	//End of program

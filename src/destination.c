@@ -118,8 +118,7 @@ int main(int argc, char const *argv[])
 					{
 						saved_sequence = seq;
 						fprintf(stdout, "Received ack!\nConnexion established.\n\n\n");
-					}
-						
+					}	
 				}
 
 				break;

@@ -175,9 +175,9 @@ infosC :
 # 127.0.0.1 -> standard address for IPv4 loopback traffic
 
 source : 	
-# @if [ ! -f $(FMS) ] ; then                         \
-	# 	make $(NPS);                                   \
-	# fi
+	@if [ ! -f $(FMS) ] ; then                         \
+		make $(NPS);                                   \
+	fi
 	@make $(NPS)
 	@if [ "$(strip $(MARQS))" = "" ]; then             \
 		echo Effectuez : MARQ=S ou MARQ=G;             \
@@ -186,9 +186,9 @@ source :
 	./bin/source $(MARQS) 127.0.0.1 3333 4444
 	
 destination :
-# @if [ ! -f $(FMD) ] ; then                       \
-	# 	make $(NPS);                                   \
-	# fi   (pour compiler et deboguer pas de fi)
+	@if [ ! -f $(FMD) ] ; then            	            \
+		make $(NPS);                                   \
+	fi
 	@make $(NPS)
 	./bin/destination 127.0.0.1 6666 5555
 
