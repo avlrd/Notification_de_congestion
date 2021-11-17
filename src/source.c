@@ -2,35 +2,25 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
-char *text = "Away we went then, and we drove for at least an hour."
-			 "Colonel Lysander Stark had said that it was only seven"
-			 "miles, but I should think, from the rate that we seemed"
-			 "to go, and from the time that we took, that it must have"
-			 "been nearer twelve. He sat at my side in silence all the"
-			 "time, and I was aware, more than once when I glanced in his"
-			 "direction, that he was looking at me with great intensity.";
-
-Packet MsgBuffer[MAX];
-int nbMsgBuffer = 0;
-
-////////////////////////////////////////////////////////////////////////////////
-
 uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 {
 	uint16_t seq = rand() % 65535;
 	int received, timeoutCounter = 0;
 
 	Packet scout;
-		scout.id_flux = 0;
-		scout.type = SYN;
-		scout.seq_num = seq;
-		scout.ack_num = 0;
-		scout.ecn = 0;
-		scout.ewnd = 1;
+		scout.id_flux = 0;			//Flux not handled
+		scout.type = SYN;			//Type SYN for synchronize
+		scout.seq_num = seq;		//random sequence number (security)
+		scout.ack_num = 0;			//ack_num not necessary in this case
+		scout.ecn = 0;				//ECN <- 0 default value
+		scout.ewnd = 1;				//emission window = 1 for 1 packet
+		strcpy(scout.message, "Asking for connexion");
 
+	//Sending synchronizing packet
 	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 	printf("Synchronizing packet sent.\nWaiting for syn-ack...\n\n");
 
+	//Calling timeout of 5 second, repeating NmaxT times before forcing quit
 	while (!timeout(sok, 5))
 	{
 		timeoutCounter++;
@@ -46,6 +36,8 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 		}
 	}
 
+	//If program gets here, it means select detected an entry in sok
+	//so recvfrom put the incoming packet into scout
 	CHECK(received = recvfrom(sok, &scout, sizeof(Packet), 0, NULL, NULL));
 	if (scout.type == (SYN + ACK) && scout.ack_num == (seq + 1))
 	{
@@ -53,12 +45,14 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 
 		scout.type = ACK;			
 		scout.ack_num = scout.seq_num + 1;
+		strcpy(scout.message, "Ack");
 
+		//Sending ack of syn-ack packet just received
 		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
 
 		printf("Ack packet sent.\n\n");
 	}
-	else
+	else //Errors
 	{
 		if(scout.type != (SYN + ACK))
 			printf("Received wrong type packet!\nExiting...\n\n");
@@ -67,7 +61,7 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 		exit(EXIT_FAILURE);
 	}
 	printf("Communication established!\n\n\n");
-	return seq; //seq est le numéro de sequence utilisé dans l'envoi du pack SYN
+	return seq; //Saving sequence number
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -75,15 +69,19 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 void stopandwait(int sok, struct sockaddr_in *dist)
 {
 	int received;
-	int nb_msg = 3;
+	int nb_msg = 10000;
 	int timeoutcounter = 0;
 	int i;
 
 	Packet p;
+		p.seq_num = 1;			//0-1 alterné
 
 	for(i = 0; i < nb_msg; i++)
 	{
-		p.seq_num = i;
+		if(p.seq_num == 1)
+			p.seq_num = 0;
+		else
+			p.seq_num = 1;
 		p.ack_num = 0;
 		p.type = DATA;
 		p.id_flux = 1;
@@ -92,7 +90,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		strcpy(p.message, "Test");
 
 		CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)dist, sizeof(struct sockaddr_in)));
-		printf("Packet n°%d sent, waiting for ack...\n", p.seq_num);
+		printf("Packet n°%d sent, waiting for ack...\n", i);
 
 		while(!timeout(sok, 5))
 		{
@@ -110,7 +108,7 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 		}
 
 		CHECK(received = recvfrom(sok, &p, sizeof(Packet), 0, NULL, NULL));
-		if(p.type == ACK && p.ack_num == i + 1)
+		if(p.type == ACK && p.ack_num == p.seq_num + 1)
 		{
 			printf("Ack received!\n");
 			display(p);
@@ -121,10 +119,15 @@ void stopandwait(int sok, struct sockaddr_in *dist)
 	printf("Finished sending messages.\n\n\n");
 }
 
-int quitter(char *message)
+////////////////////////////////////////////////////////////////////////////////
+/*
+void gobackn(int sok, struct sockaddr_in* dist)
 {
-	return (strncmp(message, "exit(q)", 7) == 0) || (strncmp(message, "\0", 1) == 0);
+	int received, timeoutcounter = 0;
+
 }
+*/
+////////////////////////////////////////////////////////////////////////////////
 
 void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 {
@@ -137,6 +140,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 		scout.ack_num = 0;
 		scout.ecn = 0;
 		scout.ewnd = 1;
+		strcpy(scout.message, "Disconnecting now");
 	
 	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
 	printf("FIN packet sent.\nWaiting for ack...\n\n");
@@ -193,6 +197,7 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 
 		scout.type = ACK;
 		scout.ack_num = scout.seq_num + 1;
+		strcpy(scout.message, "Ack");
 
 		CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
 
@@ -204,6 +209,8 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 		exit(EXIT_FAILURE);
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char const *argv[])
 {
@@ -217,9 +224,9 @@ int main(int argc, char const *argv[])
 	//Gettings command args
 	const char *arg1 = argv[1];
 	int mode;
-	if (strcmp(arg1, "stopandwait") == 0)
+	if(strcmp(arg1, "stopandwait") == 0)
 		mode = 0;
-	else if (strcmp(arg1, "gobackn") == 0)
+	else if(strcmp(arg1, "gobackn") == 0)
 		mode = 1;
 	else
 	{
@@ -233,38 +240,38 @@ int main(int argc, char const *argv[])
 	//Ergonomy
 	int domain = AF_INET;
 
-	//Socket init and bind
+	//Socket init and bind, address structure filling
 	int sok;
 	struct sockaddr_in dist;
 
 	CHECK(sok = socket(domain, SOCK_DGRAM, IPPROTO_UDP));
 
-	if (memset(&dist, '\0', sizeof(dist)) == NULL)
+	if(memset(&dist, '\0', sizeof(dist)) == NULL)
 		raler(1, "memset error");
 
-	dist.sin_family = domain;		  // distant sera IPv4
-	dist.sin_port = htons(localport); // port local
+	dist.sin_family = domain;
+	dist.sin_port = htons(localport);
 
-	if (inet_aton(ipdist, &dist.sin_addr) == 0)
+	if(inet_aton(ipdist, &dist.sin_addr) == 0)
 		raler(1, "inet_aton: adress not valid");
 
 	CHECK(bind(sok, (struct sockaddr *)&dist, sizeof(struct sockaddr_in)));
 	dist.sin_port = htons(distport);
 
-	// Three-way handshake
+	//Sequence saved for disconnexion, 3WH call
 	uint16_t saved_sequence = threewayhandshake(sok, &dist);
-	//printf("\n\nSaved sequence: %d\n", saved_sequence);
 
-	//Mode calls
-	if (mode == 0)
+	//Mode
+	if(mode == 0)
 	{
 		stopandwait(sok, &dist);
 	}
 	else
 	{
-		//gobackn();
+		//gobackn(sok, &dist);
 	}
 
+	//End of program
 	disconnection(sok, &dist, saved_sequence);
 	printf("Disconnected.\n\n");
 	CHECK(close(sok));

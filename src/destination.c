@@ -11,6 +11,7 @@ void disconnection(int sok, struct sockaddr_in* dist, uint16_t saved_seq)
 		scout.ack_num = 0;
 		scout.ecn = 0;
 		scout.ewnd = 1;
+		strcpy(scout.message, "Ready to disconnect");
 
 	CHECK(sendto(sok, &scout, sizeof(Packet), 0, (struct sockaddr *) dist, sizeof(struct sockaddr_in)));
 	printf("FIN packet sent.\nWaiting for ack...\n\n");
@@ -109,7 +110,7 @@ int main(int argc, char const *argv[])
 					display(p);
 					if(checkFIN == 1)
 					{
-						fprintf(stdout, "Received ack!\nExiting.\n\n\n");
+						fprintf(stdout, "Received ack!\nExiting.\n\n");
 						CHECK(close(sok));
 						exit(EXIT_SUCCESS);
 					}
@@ -147,6 +148,7 @@ int main(int argc, char const *argv[])
 				p.type = SYN + ACK;
 				p.ack_num = p.seq_num + 1;
 				p.seq_num = seq;
+				strcpy(p.message, "Ready to connect");
 
 				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
 				printf("Ack sent.\n\n");
