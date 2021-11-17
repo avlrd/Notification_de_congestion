@@ -131,6 +131,7 @@ int main(int argc, char const *argv[])
 
 				p.type = ACK;
 				p.ack_num = p.seq_num + 1;
+				strcpy(p.message, "ACK of the FIN packet");
 
 				CHECK(sendto(sok, &p, sizeof(Packet), 0, (struct sockaddr *)&dist, addr_size));
 				printf("Ack sent.\n\n");

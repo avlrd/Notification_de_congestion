@@ -69,7 +69,7 @@ uint16_t threewayhandshake(int sok, struct sockaddr_in *dist)
 void stopandwait(int sok, struct sockaddr_in *dist)
 {
 	int received;
-	int nb_msg = 10000;
+	int nb_msg = 300;
 	int timeoutcounter = 0;
 	int i;
 
@@ -168,10 +168,14 @@ void disconnection(int sok, struct sockaddr_in *dist, uint16_t savedseq)
 	}
 	else
 	{
-		if(scout.type != (FIN + ACK))
+		if(scout.type != ACK)
 			printf("Received wrong type packet!\nForcing quit...\n\n");
 		if(scout.ack_num != (savedseq + 1))
+		{
 			printf("Received ack of the wrong packet!\nForcing quit...\n\n");
+			display(scout);
+		}
+
 		exit(EXIT_FAILURE);
 	}
 
@@ -272,6 +276,7 @@ int main(int argc, char const *argv[])
 	}
 
 	//End of program
+	sleep(5);
 	disconnection(sok, &dist, saved_sequence);
 	printf("Disconnected.\n\n");
 	CHECK(close(sok));
