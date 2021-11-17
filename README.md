@@ -1,45 +1,37 @@
-[//]: # (IMPORTANT : Ctrl+Shift+V pour prévisualiser le fichier markdown sur Visual Studio Code)
-# Notification de congestion
+# Notification de congestion - Application de gestion de traffic UDP
 
-[![forthebadge](https://forthebadge.com/images/badges/made-with-markdown.svg)](https://forthebadge.com)
+Projet informatique réalisé dans le cadre de l'UE Algorithme des Réseaux de la 3ème année de Licence Informatique à l'Université de Strasbourg.  
+Auteurs :
+> Cédric Geissert  
+> Arthur Villard
 
-## Application de gestion de traffic UDP.
+## Utilisation
 
-### 1. Compiler et tester le projet 
+> Deux modes d'utilisation sont disponibles.
 
-#### 1.1 Makefile
+### Compilation et execution simultanées
+<br>
 
-> Dans le terminal saisissez : 
+- Placez vous dans le répertoire principal du projet et ouvrez trois terminaux.
+- Dans le premier terminal, executez le fichier `medium.py`. La documentation de ce medium est disponible ici : [lien du medium](https://git.unistra.fr/alfroy/projet_algo_reseau2021)
+- Dans le deuxième, entrez :
 
-    make medium ET/OU MOPT=votreOption
-    make destination
-    make source MARQ=S (OU MARQ=G)
+		make destination
+- Dans le troisième, entrez :
 
-> Cela va compiler : 
+		make source MARQ=<mode> //mode = S pour stopandwait ou G pour gobackn
 
-    make MODE=MF TFM='source utils'
-    make MODE=MF TFM='destination utils'
+### Compilation et execution séparées
+<br>
 
-#### 1.1 Tester
+- Placez vous dans le répertoire principal du projet et ouvrez trois terminaux.
+- Dans le premier terminal, entrez :
 
-> Dans le terminal saisissez : 
+		make
+- Dans ce même terminal, executez le fichier `medium.py`. La documentation de ce medium est disponible ici : [lien du medium](https://git.unistra.fr/alfroy/projet_algo_reseau2021)
+- Dans le deuxième, entrez :
 
-    ./bin/source <mode> <IP_distante> <port_local> <port_ecoute_src_pertubateur>
-    ./bin/destination <IP_distante> <port_local> <port_ecoute_dst_pertubateur>
+		./bin/destination <IP_distante> <port_local> <port_distant>
+- Dans le troisième, entrez :
 
-### 2. Medium
-
-> Lien du [medium](https://git.unistra.fr/alfroy/projet_algo_reseau2021).
-
-> Dans le terminal saisissez : `python3 medium.py`
-
-### Auteur   
-    Cedric GEISSERT
-    Arthur Villard
-
-### Licence 
-> Réalisée par Cédric Geissert et Arthur Villard, étudiants en L3 Informatique à l'Université de Strasbourg dans le cadre de l'UE Algorithmes des Réseaux.
-&nbsp;
-
-[![forthebadge](https://forthebadge.com/images/badges/cc-nc.svg)](https://forthebadge.com) 
-[![forthebadge](https://forthebadge.com/images/badges/cc-by-nd.svg)](https://forthebadge.com)
+		./bin/source <mode> <IP_distante> <port_local> <port_distant>
