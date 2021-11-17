@@ -1,20 +1,11 @@
-/**
- * \file utils.h
- * \brief Utils header
- * \authors Cedric GEISSERT, Arthur VILLARD
- * \version 0.1
- * \date 17 november 2021
- */
-
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <stdio.h>		 // For fprintf, perror
-#include <stdlib.h>		 // For exit
-#include <stdnoreturn.h> // For noreturn
-#include <errno.h>		 // For perror
-#include <stdarg.h>		 // For va_start/va_end
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdnoreturn.h>
+#include <errno.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -22,40 +13,25 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h> // Avoid implicit declaration inet_aton
+#include <arpa/inet.h>
 
-/*
- * Macro: Size  
- * --------------------  
- */
+//Sizes and max numbers used in some functions
 #define FORMATSIZE 52
 #define MSIZE 44
 #define MAX 255
 #define SIZE 1024
+#define NmaxT 4
 
-/*
- * Macro: Segments
- * -------------------- 
- */
+//Packet types
 #define ACK 16
 #define RST 4
 #define FIN 2
 #define SYN 1
 #define DATA 0
 
-/*
- * Macro: Miscellaneous
- * -------------------- 
- */
-#define NmaxT 4 //Number max of Time out
-
-/** \def CHECK
-* \brief Check the return values (system calls)
-* \param op return value
-* CHECK((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)));
-* CHECK((pid = fork()));
-* CHECK(wait(NULL));
-*/
+//CHECK and CHECKT macros used for testing lib functions' return values
+//CHECK		-> testing if == -1
+//CHECKT	-> testing if > 0
 #define CHECK(op)                                           \
 	do                                                      \
 	{                                                       \
@@ -66,11 +42,6 @@
 		}                                                   \
 	} while (0)
 
-/** \def CHECKT
-* \brief Check the return values (thread functions)
-* \param opt return value
-* CHECKT(errno = pthread_join(thread_id[i], NULL));
-*/
 #define CHECKT(opt)                                         \
 	do                                                      \
 	{                                                       \
@@ -81,35 +52,21 @@
 		}                                                   \
 	} while (0)
 
-/**
- * \fn noreturn void raler(int syserr, char *msg, ...)
- * \brief Complain with a message if syserr == 1.
- * \param syserr system error
- * \param msg    message
- * \param dots   various use
- */
 noreturn void raler(int syserr, char *msg, ...);
 
-/** \struct packet
-* \brief Each layer of a packet  
-* Total size : 52 bytes
-*/ 
+//Struct as described in project topic, types are used to describe number of
+//bytes for each value, this way, size of packet is always 52bytes
 typedef struct packet
 {
-	uint8_t id_flux;  /**!< numero de flux du paquet            (size 1 bytes)    */
-	uint8_t type;	  /**!< type: 16(ACK) 4(RST) 2(FIN) 1(SYN)  (size 1 bytes)    */
-	uint16_t seq_num; /**!< Num Sequence                        (size 2 bytes)    */
-	uint16_t ack_num; /**!< Num Acquittement                    (size 2 bytes)    */
-	uint8_t ecn;	  /**!< notif de congestion                 (size 1 bytes)    */
-	uint8_t ewnd;	  /**!< Fenetre d'emission                  (size 1 bytes)    */
-	char message[MSIZE];  /**!< Contenu du message             (size 44 bytes)    */
+	uint8_t id_flux;
+	uint8_t type;
+	uint16_t seq_num;
+	uint16_t ack_num;
+	uint8_t ecn;
+	uint8_t ewnd;
+	char message[MSIZE];
 } Packet;
 
-/**
- * \fn void display(Packet p)
- * \brief Display packet layers information
- * \param p Packet
- */
 void display(Packet p);
 
 int timeout(int sok, int delai);

@@ -15,43 +15,55 @@ noreturn void raler(int syserr, char *msg, ...)
     exit(EXIT_FAILURE);
 }
 
-/*ajouter du code pour afficher les types en caracteres (syn ack et data etc...)
-plutot que des chiffres
-*/
+
 void display(Packet p)
 {
 	printf("----- Message reçu -----\n\n");
-	printf("Flux: %d\nType: %d\nNum. Seq.: %d\nNum. Ack.: %d\nECN: %d\nFenêtre d'émission: %d\n\nMessage: %s", p.id_flux, p.type, p.seq_num, p.ack_num, p.ecn, p.ewnd, p.message);
-	printf("\n\n");
+	printf("Flux: %d\n", p.id_flux);
+	switch(p.type)
+	{
+		case DATA:
+			printf("Type: DATA\n");
+			break;
+		
+		case SYN:
+			printf("Type: SYN\n");
+			break;
+
+		case FIN:
+			printf("Type: FIN\n");
+			break;
+		
+		case RST:
+			printf("Type: RST\n");
+			break;
+
+		case ACK:
+			printf("Type: ACK\n");
+			break;
+		
+		default:
+			break;
+	}
+	printf("Num. Seq.: %d\nNum. Ack.: %d\nECN: %d\nFenêtre d'émission: %d\n\nMessage: %s\n\n------------------------\n\n", p.seq_num, p.ack_num, p.ecn, p.ewnd, p.message);
 }
 
-/*
- * Function: timeout
- * --------------------
- * Le timeout détermine le temps d'attente maximal de la réponse. Si le timeout est écoulé, 
- * l'échange se termine avec un compte-rendu d'erreur, de même, la réception d'une réponse 
- * après la fin du timeout est refusée.
- *
- *  sock : int 
- *
- *  returns: nothing
- */
 int timeout(int sok,int delai)
 {
 	fd_set rfds;
 	struct timeval tv;
 	int retval;
 
-	/* Surveiller socket en attente d'entrées */
+	// Surveiller socket en attente d'entrées
 	FD_ZERO(&rfds);		// efface un ensemble.
 	FD_SET(sok, &rfds); // ajoute un descripteur dans un ensemble (la socket)
 
-	/* Délai avant timeout : delai = 5 secondes maxi par exemple */
+	// Délai avant timeout : delai = 5 secondes maxi par exemple
 	tv.tv_sec = delai;
 	tv.tv_usec = 0;
 
 	// nfds : numéro du plus grand descripteur valide +1
 	CHECK(retval = select(sok + 1, &rfds, NULL, NULL, &tv)); // -1
-	/* Considérer tv comme indéfini maintenant ! */
+	// Considérer tv comme indéfini maintenant !
 	return retval;
 }
